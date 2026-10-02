@@ -5,6 +5,7 @@ from src.models.booking import Booking, BookingStatus
 from src.models.review import Review
 from src.models.user import User
 from src.schemas.review import ReviewCreate
+from src.services.guest_favorite_service import GuestFavoriteService
 
 
 class ReviewService:
@@ -73,4 +74,5 @@ class ReviewService:
         db.add(review)
         await db.commit()
         await db.refresh(review)
+        await GuestFavoriteService.refresh(db, property_id)
         return review
