@@ -5,13 +5,14 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.api.router import api_router
 from src.core.config import settings
+from src.core.metrics import HTTP_DURATION, HTTP_REQUESTS
 from src.core.security_headers import SecurityHeadersMiddleware
 from src.db.session import AsyncSessionLocal
 from src.services.job_worker import redis_worker_loop
@@ -82,8 +83,12 @@ async def request_context(request: Request, call_next):
             import sentry_sdk
             sentry_sdk.capture_exception(exc)
         response = JSONResponse(status_code=500, content={"detail": "Internal server error", "request_id": request_id})
+    elapsed = time.perf_counter() - started
+    route_path = request.scope.get("route").path if request.scope.get("route") else request.url.path
+    HTTP_REQUESTS.labels(request.method, route_path, str(response.status_code)).inc()
+    HTTP_DURATION.labels(request.method, route_path).observe(elapsed)
     response.headers["X-Request-ID"] = request_id
-    response.headers["X-Response-Time-Ms"] = f"{(time.perf_counter() - started) * 1000:.1f}"
+    response.headers["X-Response-Time-Ms"] = f"{elapsed * 1000:.1f}"
     return response
 
 
@@ -91,6 +96,12 @@ if settings.storage_provider == "local":
     app.mount("/uploads", StaticFiles(directory="uploads", check_dir=False), name="uploads")
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics():
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/health/live", tags=["Health"])
