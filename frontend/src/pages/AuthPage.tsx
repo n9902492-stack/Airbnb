@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../lib/api';
+import { authStore, homeForRole } from '../lib/auth';
 
 type Mode = 'signin' | 'signup' | 'verify' | 'forgot' | 'reset';
 
@@ -14,6 +15,7 @@ const isStrongPassword = (value: string) =>
 export default function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('signin');
+  const [accountType, setAccountType] = useState<'user' | 'owner'>('user');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +34,12 @@ export default function AuthPage() {
           setError('Use at least 10 characters with uppercase, lowercase, number and special character.');
           return;
         }
-        await authApi.register({ full_name: fullName, email, password });
+        await authApi.register({
+          full_name: fullName,
+          email,
+          password,
+          account_type: accountType,
+        });
         setMode('verify');
         setMessage('A 6-digit OTP was sent to your email.');
         return;
@@ -47,8 +54,10 @@ export default function AuthPage() {
 
       if (mode === 'signin') {
         const result = await authApi.login(email, password);
-        localStorage.setItem('nestora_access_token', result.access_token);
-        navigate('/');
+        authStore.setToken(result.access_token);
+        const user = await authApi.me();
+        authStore.setUser(user);
+        navigate(homeForRole(user.role), { replace: true });
         return;
       }
 
@@ -64,11 +73,16 @@ export default function AuthPage() {
           setError('New password must be strong: 10+ characters, uppercase, lowercase, number and special character.');
           return;
         }
-        const result = await authApi.resetPassword({ email, otp, new_password: password });
+        const result = await authApi.resetPassword({
+          email,
+          otp,
+          new_password: password,
+        });
         setMessage(result.message);
         setMode('signin');
       }
     } catch (err) {
+      authStore.clear();
       setError(err instanceof Error ? err.message : 'Something went wrong');
     }
   }
@@ -90,10 +104,31 @@ export default function AuthPage() {
 
         <form onSubmit={submit} className="auth-form">
           {mode === 'signup' && (
-            <label>
-              Full name
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            </label>
+            <>
+              <label>
+                Full name
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+              </label>
+
+              <div className="account-type-grid">
+                <button
+                  type="button"
+                  className={accountType === 'user' ? 'account-type active' : 'account-type'}
+                  onClick={() => setAccountType('user')}
+                >
+                  <strong>Traveller</strong>
+                  <small>I want to discover and book stays.</small>
+                </button>
+                <button
+                  type="button"
+                  className={accountType === 'owner' ? 'account-type active' : 'account-type'}
+                  onClick={() => setAccountType('owner')}
+                >
+                  <strong>Property owner</strong>
+                  <small>I want to list and manage properties.</small>
+                </button>
+              </div>
+            </>
           )}
 
           <label>
@@ -143,7 +178,11 @@ export default function AuthPage() {
         {mode === 'verify' && (
           <button
             className="auth-link"
-            onClick={() => authApi.resendOtp(email).then((r) => setMessage(r.message)).catch((e) => setError(e.message))}
+            onClick={() =>
+              authApi.resendOtp(email)
+                .then((r) => setMessage(r.message))
+                .catch((e) => setError(e.message))
+            }
           >
             Resend OTP
           </button>
