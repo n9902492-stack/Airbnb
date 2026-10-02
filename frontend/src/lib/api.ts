@@ -405,6 +405,16 @@ export const ownerManagementApi = {
       headers: authHeaders(),
     }),
 
+  payoutAccount: () =>
+    request<{
+      configured: boolean;
+      provider: string;
+      linked_account_id?: string;
+      status?: string;
+    }>('/owner/payout-account', {
+      headers: authHeaders(),
+    }),
+
   payouts: () =>
     request<{
       pending: number;
@@ -637,6 +647,13 @@ export type AdminFinance = {
 };
 
 export const financeApi = {
+  setOwnerPayoutAccount: (ownerId: number, linkedAccountId: string) =>
+    request('/super-admin/owners/' + ownerId + '/payout-account', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ linked_account_id: linkedAccountId }),
+    }),
+
   admin: () =>
     request<AdminFinance>('/super-admin/finance', {
       headers: authHeaders(),
