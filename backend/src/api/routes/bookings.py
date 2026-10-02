@@ -13,6 +13,7 @@ from src.schemas.booking import BookingCreate, BookingRead
 from src.services.booking_service import BookingService
 from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.cancellation_service import CancellationService
+from src.services.notification_service import NotificationService
 from src.services.property_service import PropertyService
 
 
@@ -39,7 +40,16 @@ async def create_booking(
         )
 
     try:
-        return await BookingService.create(db, current_user.id, property_obj, payload)
+        booking = await BookingService.create(db, current_user.id, property_obj, payload)
+        if booking.status == BookingStatus.REQUESTED:
+            await NotificationService.create(
+                db,
+                property_obj.owner_id,
+                "booking_request",
+                "New booking request",
+                f"{current_user.full_name} requested {booking.check_in} to {booking.check_out} for {property_obj.title}.",
+            )
+        return booking
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
