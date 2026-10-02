@@ -19,15 +19,16 @@ from src.services.job_worker import redis_worker_loop
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    worker = asyncio.create_task(redis_worker_loop())
+    worker = asyncio.create_task(redis_worker_loop()) if settings.job_worker_enabled else None
     try:
         yield
     finally:
-        worker.cancel()
-        try:
-            await worker
-        except asyncio.CancelledError:
-            pass
+        if worker:
+            worker.cancel()
+            try:
+                await worker
+            except asyncio.CancelledError:
+                pass
 
 
 if settings.app_env == "production":
@@ -76,7 +77,10 @@ async def request_context(request: Request, call_next):
     started = time.perf_counter()
     try:
         response = await call_next(request)
-    except Exception:
+    except Exception as exc:
+        if settings.sentry_dsn:
+            import sentry_sdk
+            sentry_sdk.capture_exception(exc)
         response = JSONResponse(status_code=500, content={"detail": "Internal server error", "request_id": request_id})
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Response-Time-Ms"] = f"{(time.perf_counter() - started) * 1000:.1f}"
