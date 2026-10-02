@@ -46,6 +46,22 @@ class PaymentService:
         booking: Booking,
         provider_payment_id: str | None = None,
     ) -> Payment:
+        if booking.status == BookingStatus.CANCELLED:
+            if payment.provider == "razorpay" and provider_payment_id:
+                await RazorpayService.refund_payment(
+                    provider_payment_id,
+                    payment.amount,
+                )
+                payment.provider_payment_id = provider_payment_id
+                payment.status = PaymentStatus.REFUNDED
+                payment.refund_amount = payment.amount
+                payment.refunded_at = datetime.now(timezone.utc)
+                await db.commit()
+                await db.refresh(payment)
+                return payment
+
+            raise ValueError("Booking hold has expired and cannot be confirmed")
+
         payment.status = PaymentStatus.PAID
         payment.paid_at = datetime.now(timezone.utc)
         if provider_payment_id:
