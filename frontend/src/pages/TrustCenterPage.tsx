@@ -2,9 +2,11 @@ import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeft, BadgeCheck, CircleHelp, ShieldCheck, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { authStore } from '../lib/auth';
 import { trustApi } from '../lib/api';
 
 export default function TrustCenterPage() {
+  const user = authStore.getUser();
   const [identity, setIdentity] = useState<Awaited<ReturnType<typeof trustApi.identity>> | null>(null);
   const [cases, setCases] = useState<Awaited<ReturnType<typeof trustApi.mySupport>>>([]);
   const [claims, setClaims] = useState<Awaited<ReturnType<typeof trustApi.myClaims>>>([]);
@@ -57,7 +59,7 @@ export default function TrustCenterPage() {
   return (
     <main className="profile-page">
       <div className="detail-top">
-        <Link to="/user" className="back"><ArrowLeft size={18}/>Dashboard</Link>
+        <Link to={user?.role === 'owner' ? '/owner' : user?.role === 'super_admin' ? '/super-admin' : '/user'} className="back"><ArrowLeft size={18}/>Dashboard</Link>
         <span className="brand">Nestora</span>
       </div>
 
@@ -151,7 +153,7 @@ export default function TrustCenterPage() {
           <div className="support-list">
             {claims.length === 0 ? <p>No money requests or damage claims.</p> : claims.map((claim)=>(
               <article key={claim.id}><div><strong>Claim #{claim.id} · ₹{Number(claim.amount).toLocaleString('en-IN')}</strong><small>Booking #{claim.booking_id}</small><p>{claim.reason}</p></div><span className={'booking-status ' + claim.status}>{claim.status}</span>
-                {claim.respondent_id && claim.status === 'requested' && (
+                {claim.respondent_id === user?.id && claim.status === 'requested' && (
                   <div className="moderation-actions">
                     <button className="primary inline" onClick={async()=>{try{await trustApi.respondClaim(claim.id,'accepted');await load();}catch{}}}>Accept</button>
                     <button className="ghost dark" onClick={async()=>{try{await trustApi.respondClaim(claim.id,'declined');await load();}catch{}}}>Decline</button>
