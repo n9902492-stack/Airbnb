@@ -6,6 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
+from src.models.property import Property
+from src.models.user import User
+from src.services.email_service import EmailService
+from src.services.notification_service import NotificationService
 from src.services.razorpay_service import RazorpayService
 
 
@@ -58,4 +62,37 @@ class CancellationService:
         booking.cancellation_reason = reason
 
         await db.commit()
+
+        property_obj = await db.get(Property, booking.property_id)
+        guest = await db.get(User, booking.guest_id)
+
+        if guest:
+            await NotificationService.create(
+                db,
+                guest.id,
+                "booking_cancelled",
+                "Booking cancelled",
+                f"Booking #{booking.id} was cancelled. Refund: ₹{refund_amount:.2f}.",
+            )
+
+        if property_obj:
+            await NotificationService.create(
+                db,
+                property_obj.owner_id,
+                "reservation_cancelled",
+                "Reservation cancelled",
+                f"Booking #{booking.id} for {property_obj.title} was cancelled.",
+            )
+
+        if guest and property_obj:
+            try:
+                await EmailService.send_cancellation_receipt(
+                    guest.email,
+                    property_obj.title,
+                    f"{refund_amount:.2f}",
+                    percent,
+                )
+            except Exception:
+                pass
+
         return percent, refund_amount
