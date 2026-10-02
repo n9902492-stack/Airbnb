@@ -67,3 +67,28 @@ class PayoutService:
                 payout.status = PayoutStatus.CANCELLED
 
         await db.commit()
+
+
+    @staticmethod
+    async def mark_ready(db: AsyncSession, booking_id: int) -> None:
+        payout = await db.scalar(
+            select(OwnerPayout).where(OwnerPayout.booking_id == booking_id)
+        )
+        if payout and payout.status == PayoutStatus.PENDING:
+            payout.status = PayoutStatus.READY
+            await db.commit()
+
+    @staticmethod
+    async def mark_paid(
+        db: AsyncSession,
+        payout: OwnerPayout,
+        provider_reference: str | None = None,
+    ) -> OwnerPayout:
+        from datetime import datetime, timezone
+
+        payout.status = PayoutStatus.PAID
+        payout.provider_reference = provider_reference
+        payout.paid_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(payout)
+        return payout
