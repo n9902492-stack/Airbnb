@@ -50,7 +50,8 @@ class CancellationService:
 
             payment.refund_amount = refund_amount
             payment.refunded_at = datetime.now(timezone.utc)
-            payment.status = PaymentStatus.REFUNDED
+            if percent == 100:
+                payment.status = PaymentStatus.REFUNDED
 
         booking.status = BookingStatus.CANCELLED
         booking.cancelled_at = datetime.now(timezone.utc)
