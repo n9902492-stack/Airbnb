@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_user, require_roles
@@ -209,20 +209,56 @@ async def book_offering(
     item = await db.get(MarketplaceOffering, offering_id)
     if not item or item.status != "live":
         raise HTTPException(status_code=404, detail="Offering not found")
-    if payload.guest_count > item.capacity:
-        raise HTTPException(status_code=422, detail="Guest count exceeds capacity")
-    if payload.scheduled_at <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=422, detail="Choose a future time")
+    slot = None
+    scheduled_at = payload.scheduled_at
+    capacity = item.capacity
+    unit_price = Decimal(item.price)
 
-    units = payload.guest_count if item.pricing_unit == "per_guest" else 1
-    subtotal = Decimal(item.price) * units
+    if payload.slot_id is not None:
+        slot = await db.get(OfferingAvailabilitySlot, payload.slot_id)
+        if not slot or slot.offering_id != item.id:
+            raise HTTPException(status_code=404, detail="Availability slot not found")
+        scheduled_at = slot.starts_at
+        capacity = slot.capacity
+        if slot.price_override is not None:
+            unit_price = Decimal(slot.price_override)
+
+        reserved = await db.scalar(
+            select(func.coalesce(func.sum(OfferingBooking.guest_count), 0)).where(
+                OfferingBooking.offering_id == item.id,
+                OfferingBooking.scheduled_at == slot.starts_at,
+                OfferingBooking.status.in_(["requested", "confirmed"]),
+            )
+        )
+        remaining = max(0, capacity - int(reserved or 0))
+        if payload.private_group:
+            if not slot.is_private_available or slot.private_group_price is None:
+                raise HTTPException(status_code=409, detail="Private group is not available for this slot")
+            if int(reserved or 0) > 0:
+                raise HTTPException(status_code=409, detail="This slot already has guests")
+            subtotal = Decimal(slot.private_group_price)
+        else:
+            if payload.guest_count > remaining:
+                raise HTTPException(status_code=409, detail=f"Only {remaining} places remain for this slot")
+            units = payload.guest_count if item.pricing_unit == "per_guest" else 1
+            subtotal = unit_price * units
+    else:
+        if scheduled_at is None:
+            raise HTTPException(status_code=422, detail="Choose an availability slot")
+        if payload.guest_count > capacity:
+            raise HTTPException(status_code=422, detail="Guest count exceeds capacity")
+        units = payload.guest_count if item.pricing_unit == "per_guest" else 1
+        subtotal = unit_price * units
+
+    if scheduled_at is None or scheduled_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=422, detail="Choose a future time")
     service_fee = (subtotal * Decimal("0.10")).quantize(Decimal("0.01"))
     total = subtotal + service_fee
 
     booking = OfferingBooking(
         offering_id=item.id,
         guest_id=current_user.id,
-        scheduled_at=payload.scheduled_at,
+        scheduled_at=scheduled_at,
         guest_count=payload.guest_count,
         subtotal=subtotal,
         service_fee=service_fee,
