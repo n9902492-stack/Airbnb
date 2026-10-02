@@ -191,6 +191,18 @@ async def razorpay_webhook(
                     provider_payment_id=provider_payment_id,
                 )
 
+    if event_name in {"transfer.created", "transfer.processed", "transfer.failed", "transfer.reversed", "transfer.updated"}:
+        transfer_entity = (
+            event.get("payload", {})
+            .get("transfer", {})
+            .get("entity", {})
+        )
+        if transfer_entity:
+            await PayoutAutomationService.reconcile_transfer_event(
+                db,
+                transfer_entity,
+            )
+
     if event_name in {"settlement.processed", "settlement.failed"}:
         settlement_entity = (
             event.get("payload", {})
