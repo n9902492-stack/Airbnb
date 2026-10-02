@@ -362,3 +362,164 @@ cd backend
 .venv\Scripts\activate
 alembic upgrade head
 ```
+
+
+## Production hardening and full stay lifecycle
+
+The marketplace pipeline now includes production-oriented pricing, booking completion, owner payouts and authentication abuse controls.
+
+### Pricing order
+
+Booking totals are calculated on the backend in this order for every booked night:
+
+```text
+Seasonal/date pricing rule
+        ↓ if none
+Weekend price (Friday/Saturday)
+        ↓ if none
+Base nightly price
+```
+
+Owners can also configure:
+
+```text
+minimum stay nights
+maximum stay nights
+seasonal minimum stay
+weekend nightly price
+```
+
+Owner pricing endpoints:
+
+```text
+GET    /api/v1/owner/properties/{property_id}/pricing-rules
+POST   /api/v1/owner/properties/{property_id}/pricing-rules
+DELETE /api/v1/owner/properties/{property_id}/pricing-rules/{rule_id}
+```
+
+### Completed stay lifecycle
+
+The booking lifecycle worker now performs both:
+
+```text
+unpaid pending booking → cancelled after hold expiry
+confirmed booking → completed after checkout date
+```
+
+When a stay becomes completed:
+
+```text
+booking → completed
+owner payout → ready
+guest → review-available notification
+owner → payout-ready notification
+```
+
+This connects completed stays directly to verified review eligibility.
+
+### Platform commission and owner payouts
+
+Default platform commission:
+
+```env
+PLATFORM_COMMISSION_PERCENT=12
+```
+
+Owner payout is based on accommodation revenue only:
+
+```text
+nightly accommodation + cleaning fee
+        ↓
+Nestora owner commission
+        ↓
+owner payable
+```
+
+The guest service fee and optional transfer are not included in the owner's accommodation payout.
+
+Refunds proportionally recalculate:
+
+```text
+remaining accommodation revenue
+platform commission
+owner payable
+```
+
+Owner payout endpoint:
+
+```text
+GET /api/v1/owner/payouts
+```
+
+Super Admin finance endpoints:
+
+```text
+GET  /api/v1/super-admin/finance
+POST /api/v1/super-admin/payouts/{payout_id}/mark-paid
+```
+
+Important: `mark-paid` records that an external payout has been completed. It does not itself send money to the owner's bank account. A payout provider integration must be added before automatic bank payouts are enabled.
+
+### Authentication abuse protection
+
+Database-backed controls now include:
+
+```env
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_ATTEMPT_WINDOW_MINUTES=15
+OTP_RESEND_COOLDOWN_SECONDS=60
+```
+
+Failed login attempts are stored in `auth_events`; excessive failures return HTTP 429. Verification OTP resend also has a cooldown.
+
+### Production HTTP security
+
+Production startup rejects the default/weak JWT secret and incomplete Razorpay configuration.
+
+Set API hostnames explicitly:
+
+```env
+ALLOWED_HOSTS=api.example.com,localhost
+```
+
+Security headers and TrustedHost middleware are enabled in production.
+
+### Migration 07
+
+Apply:
+
+```powershell
+cd backend
+.venv\Scripts\activate
+alembic upgrade head
+```
+
+Migration:
+
+```text
+20261002_07_pricing_payout_security.py
+```
+
+adds:
+
+```text
+properties.weekend_price_per_night
+properties.minimum_stay_nights
+properties.maximum_stay_nights
+
+pricing_rules
+owner_payouts
+auth_events
+```
+
+The current migration chain is:
+
+```text
+01 auth / properties / bookings
+02 verified reviews
+03 transfer and map coordinates
+04 availability and payments
+05 expiry / cancellation / refunds
+06 wishlist / messages / notifications
+07 pricing / payouts / auth security
+```
