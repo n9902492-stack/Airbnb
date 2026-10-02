@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import require_roles
 from src.db.session import get_db
+from src.models.audit_log import AuditLog
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
 from src.models.payout import OwnerPayout, PayoutStatus
@@ -18,6 +19,34 @@ from src.services.payout_service import PayoutService
 
 router = APIRouter()
 super_admin_required = require_roles(UserRole.SUPER_ADMIN)
+
+
+@router.get("/audit-logs")
+async def audit_logs(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    limit = min(max(limit, 1), 500)
+    result = await db.execute(
+        select(AuditLog)
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
+    return [
+        {
+            "id": item.id,
+            "actor_user_id": item.actor_user_id,
+            "action": item.action,
+            "entity_type": item.entity_type,
+            "entity_id": item.entity_id,
+            "request_id": item.request_id,
+            "ip_address": item.ip_address,
+            "metadata": item.metadata_json,
+            "created_at": item.created_at,
+        }
+        for item in result.scalars().all()
+    ]
 
 
 @router.get("/overview")
@@ -207,9 +236,10 @@ async def pending_properties(
 @router.post("/bookings/{booking_id}/cancel")
 async def admin_cancel_booking(
     booking_id: int,
+    request: Request,
     reason: str = "Cancelled by platform administrator",
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(super_admin_required),
+    current_admin: User = Depends(super_admin_required),
 ):
     booking = await db.get(Booking, booking_id)
     if not booking:
@@ -231,6 +261,17 @@ async def admin_cancel_booking(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
+    await AuditService.record(
+        db,
+        "booking.admin_cancelled",
+        actor_user_id=current_admin.id,
+        entity_type="booking",
+        entity_id=booking.id,
+        request_id=request.headers.get("x-request-id"),
+        ip_address=request.client.host if request.client else None,
+        metadata={"reason": reason, "refund_amount": str(refund_amount)},
+    )
+
     return {
         "booking_id": booking.id,
         "status": booking.status.value,
@@ -242,8 +283,9 @@ async def admin_cancel_booking(
 @router.post("/properties/{property_id}/approve")
 async def approve_property(
     property_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(super_admin_required),
+    current_admin: User = Depends(super_admin_required),
 ):
     property_obj = await db.get(Property, property_id)
     if not property_obj:
@@ -252,6 +294,15 @@ async def approve_property(
     property_obj.status = PropertyStatus.LIVE
     property_obj.rejection_reason = None
     await db.commit()
+    await AuditService.record(
+        db,
+        "property.approved",
+        actor_user_id=current_admin.id,
+        entity_type="property",
+        entity_id=property_obj.id,
+        request_id=request.headers.get("x-request-id"),
+        ip_address=request.client.host if request.client else None,
+    )
 
     return {"id": property_obj.id, "status": property_obj.status}
 
@@ -260,8 +311,9 @@ async def approve_property(
 async def reject_property(
     property_id: int,
     reason: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(super_admin_required),
+    current_admin: User = Depends(super_admin_required),
 ):
     property_obj = await db.get(Property, property_id)
     if not property_obj:
@@ -270,5 +322,15 @@ async def reject_property(
     property_obj.status = PropertyStatus.REJECTED
     property_obj.rejection_reason = reason
     await db.commit()
+    await AuditService.record(
+        db,
+        "property.rejected",
+        actor_user_id=current_admin.id,
+        entity_type="property",
+        entity_id=property_obj.id,
+        request_id=request.headers.get("x-request-id"),
+        ip_address=request.client.host if request.client else None,
+        metadata={"reason": reason},
+    )
 
     return {"id": property_obj.id, "status": property_obj.status}
