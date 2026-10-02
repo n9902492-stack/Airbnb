@@ -592,6 +592,8 @@ export const propertyApi = {
   search: (params: {
     q?: string;
     city?: string;
+    check_in?: string;
+    check_out?: string;
     category?: string;
     guests?: number;
     bedrooms?: number;
