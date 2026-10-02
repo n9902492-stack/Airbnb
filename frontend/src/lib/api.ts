@@ -166,3 +166,125 @@ export const transferApi = {
       body: JSON.stringify(payload),
     }),
 };
+
+
+export type AvailabilityResponse = {
+  property_id: number;
+  blocked_dates: string[];
+};
+
+export type BookingResult = {
+  id: number;
+  property_id: number;
+  guest_id: number;
+  check_in: string;
+  check_out: string;
+  guest_count: number;
+  subtotal: number;
+  service_fee: number;
+  total_amount: number;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+};
+
+export const bookingApi = {
+  availability: (propertyId: number, start: string, days = 180) =>
+    request<AvailabilityResponse>(
+      '/availability/properties/' + propertyId + '?start=' + encodeURIComponent(start) + '&days=' + days
+    ),
+
+  create: (payload: { property_id: number; check_in: string; check_out: string; guest_count: number }) =>
+    request<BookingResult>('/bookings', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+};
+
+export type CheckoutPreview = {
+  booking_id: number;
+  stay_subtotal: number;
+  service_fee: number;
+  transfer_fee: number;
+  grand_total: number;
+  currency: string;
+};
+
+export type PaymentResult = {
+  id: number;
+  booking_id: number;
+  amount: number;
+  currency: string;
+  status: string;
+};
+
+export const paymentApi = {
+  preview: (bookingId: number) =>
+    request<CheckoutPreview>('/payments/checkout/' + bookingId, {
+      headers: authHeaders(),
+    }),
+
+  create: (bookingId: number) =>
+    request<PaymentResult>('/payments/checkout/' + bookingId, {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  demoConfirm: (paymentId: number) =>
+    request<PaymentResult>('/payments/' + paymentId + '/demo-confirm', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+};
+
+export type PendingProperty = {
+  id: number;
+  title: string;
+  owner_id: number;
+  city: string;
+  state: string;
+  price_per_night: number;
+  image_urls: string[];
+  created_at: string;
+};
+
+export const adminApi = {
+  overview: () =>
+    request<{ users: number; owners: number; listings: number; bookings: number }>('/super-admin/overview', {
+      headers: authHeaders(),
+    }),
+
+  pendingProperties: () =>
+    request<PendingProperty[]>('/super-admin/properties/pending', {
+      headers: authHeaders(),
+    }),
+
+  approveProperty: (propertyId: number) =>
+    request('/super-admin/properties/' + propertyId + '/approve', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  rejectProperty: (propertyId: number, reason: string) =>
+    request('/super-admin/properties/' + propertyId + '/reject?reason=' + encodeURIComponent(reason), {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+};
+
+export const ownerManagementApi = {
+  getProperties: () => ownerApi.listProperties(),
+
+  updateProperty: (propertyId: number, payload: unknown) =>
+    request<OwnerProperty>('/owner/properties/' + propertyId, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  blockDates: (propertyId: number, payload: { start_date: string; end_date: string; reason: string }) =>
+    request('/owner/properties/' + propertyId + '/availability-blocks', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+};
