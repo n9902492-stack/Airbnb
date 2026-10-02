@@ -102,6 +102,8 @@ export type OwnerProperty = {
   minimum_stay_nights?: number;
   maximum_stay_nights?: number | null;
   status: 'draft' | 'pending' | 'live' | 'rejected' | 'paused';
+  booking_mode?: 'instant' | 'request';
+  guest_favorite?: boolean;
   image_urls: string[];
   rejection_reason?: string | null;
 };
@@ -260,7 +262,7 @@ export type BookingResult = {
   subtotal: number;
   service_fee: number;
   total_amount: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'requested' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
 };
 
 export const bookingApi = {
@@ -396,6 +398,33 @@ export const adminApi = {
       headers: authHeaders(),
     }),
 
+  pendingOfferings: () =>
+    request<Array<{
+      id:number;
+      host_id:number;
+      kind:string;
+      title:string;
+      category:string;
+      city:string;
+      state:string;
+      price:number;
+      image_urls:string[];
+    }>>('/super-admin/offerings/pending', {
+      headers: authHeaders(),
+    }),
+
+  approveOffering: (id: number) =>
+    request('/super-admin/offerings/' + id + '/approve', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  rejectOffering: (id: number, reason: string) =>
+    request('/super-admin/offerings/' + id + '/reject?reason=' + encodeURIComponent(reason), {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
   pendingProperties: () =>
     request<PendingProperty[]>('/super-admin/properties/pending', {
       headers: authHeaders(),
@@ -495,6 +524,18 @@ export const ownerManagementApi = {
       headers: authHeaders(),
     }),
 
+  acceptBookingRequest: (bookingId: number) =>
+    request('/owner/booking-requests/' + bookingId + '/accept', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  declineBookingRequest: (bookingId: number) =>
+    request('/owner/booking-requests/' + bookingId + '/decline', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
   reservations: () =>
     request<Array<{
       booking_id: number;
@@ -543,6 +584,8 @@ export type PublicProperty = {
   check_out_time: string;
   status: string;
   rejection_reason?: string | null;
+  booking_mode: 'instant' | 'request';
+  guest_favorite: boolean;
 };
 
 export const propertyApi = {
@@ -551,13 +594,28 @@ export const propertyApi = {
     city?: string;
     category?: string;
     guests?: number;
+    bedrooms?: number;
+    beds?: number;
+    bathrooms?: number;
+    property_type?: string;
+    instant_book?: boolean;
+    guest_favorite?: boolean;
+    amenities?: string[];
     min_price?: number;
     max_price?: number;
+    min_lat?: number;
+    max_lat?: number;
+    min_lng?: number;
+    max_lng?: number;
   } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== '' && value !== null) {
-        qs.set(key, String(value));
+        if (Array.isArray(value)) {
+          value.forEach((item) => qs.append(key, String(item)));
+        } else {
+          qs.set(key, String(value));
+        }
       }
     });
     const suffix = qs.toString() ? '?' + qs.toString() : '';
@@ -743,6 +801,187 @@ export const invoiceApi = {
       currency: string;
       issued_at: string;
     }>('/invoices/' + bookingId, {
+      headers: authHeaders(),
+    }),
+};
+
+
+export type MarketplaceOffering = {
+  id: number;
+  host_id: number;
+  kind: 'service' | 'experience';
+  title: string;
+  description: string;
+  category: string;
+  city: string;
+  state: string;
+  country: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  price: number;
+  pricing_unit: 'per_guest' | 'per_group' | 'per_session';
+  duration_minutes: number;
+  capacity: number;
+  image_urls: string[];
+  included_items: string[];
+  requirements: string[];
+  instant_book: boolean;
+  status: string;
+};
+
+export const offeringApi = {
+  list: (params: { kind?: 'service' | 'experience'; q?: string; city?: string; category?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) qs.set(key, String(value));
+    });
+    return request<MarketplaceOffering[]>('/offerings' + (qs.toString() ? '?' + qs.toString() : ''));
+  },
+
+  get: (id: number) => request<MarketplaceOffering>('/offerings/' + id),
+
+  create: (payload: unknown) =>
+    request<MarketplaceOffering>('/offerings', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  mine: () =>
+    request<MarketplaceOffering[]>('/offerings/host/mine', {
+      headers: authHeaders(),
+    }),
+
+  book: (id: number, payload: { scheduled_at: string; guest_count: number }) =>
+    request<{
+      id: number;
+      status: string;
+      payment_status: string;
+      message?: string;
+      amount?: number;
+      currency?: string;
+      provider?: 'razorpay' | 'manual_demo';
+      provider_order_id?: string | null;
+      razorpay_key_id?: string | null;
+      amount_paise?: number;
+    }>('/offerings/' + id + '/book', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  confirmDemo: (bookingId: number) =>
+    request('/offerings/bookings/' + bookingId + '/demo-confirm', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  mineBookings: () =>
+    request<Array<{
+      id: number;
+      offering_id: number;
+      title: string;
+      kind: string;
+      scheduled_at: string;
+      guest_count: number;
+      total_amount: number;
+      status: string;
+      payment_status: string;
+    }>>('/offerings/bookings/mine', {
+      headers: authHeaders(),
+    }),
+};
+
+export const hostApi = {
+  get: (id: number) =>
+    request<{
+      id: number;
+      full_name: string;
+      joined_at: string;
+      bio?: string | null;
+      avatar_url?: string | null;
+      languages: string[];
+      interests: string[];
+      work?: string | null;
+      verified_identity: boolean;
+      response_rate: number;
+      response_time_label: string;
+      live_listings: number;
+      average_rating: number;
+    }>('/hosts/' + id),
+
+  updateMine: (payload: unknown) =>
+    request('/hosts/me/profile', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const collaborationApi = {
+  cohosts: (propertyId: number) =>
+    request<Array<{ id:number; user_id:number; name:string; email:string; permission:string }>>(
+      '/collaboration/properties/' + propertyId + '/cohosts',
+      { headers: authHeaders() },
+    ),
+
+  addCohost: (propertyId: number, email: string, permission: 'calendar' | 'messages' | 'full') =>
+    request('/collaboration/properties/' + propertyId + '/cohosts', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ email, permission }),
+    }),
+
+  removeCohost: (propertyId: number, cohostId: number) =>
+    request('/collaboration/properties/' + propertyId + '/cohosts/' + cohostId, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }),
+
+  createWishlist: (name: string) =>
+    request<{ id:number; name:string; share_token:string }>('/collaboration/wishlists', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name }),
+    }),
+
+  wishlists: () =>
+    request<Array<{ id:number; name:string; share_token?:string | null; owner_user_id:number }>>(
+      '/collaboration/wishlists',
+      { headers: authHeaders() },
+    ),
+
+  addWishlistItem: (collectionId: number, propertyId: number) =>
+    request('/collaboration/wishlists/' + collectionId + '/items', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ property_id: propertyId }),
+    }),
+
+  joinWishlist: (shareToken: string) =>
+    request('/collaboration/wishlists/join/' + encodeURIComponent(shareToken), {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  specialOffers: () =>
+    request<Array<{
+      id:number;
+      property_id:number;
+      property_title:string;
+      check_in:string;
+      check_out:string;
+      guest_count:number;
+      total_price:number;
+      status:string;
+      expires_at:string;
+    }>>('/collaboration/special-offers/mine', {
+      headers: authHeaders(),
+    }),
+
+  acceptSpecialOffer: (offerId: number) =>
+    request<{ booking_id:number; status:string }>('/collaboration/special-offers/' + offerId + '/accept', {
+      method: 'POST',
       headers: authHeaders(),
     }),
 };
