@@ -32,12 +32,14 @@ export default function OwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState<Awaited<ReturnType<typeof ownerManagementApi.reservations>>>([]);
   const [earnings, setEarnings] = useState<OwnerEarnings>({ gross: 0, refunded: 0, net: 0, transactions: [] });
+  const [payouts, setPayouts] = useState<{ pending: number; paid: number; commission: number; payouts: Array<{ id:number; booking_id:number; owner_amount:number; status:string }> }>({ pending: 0, paid: 0, commission: 0, payouts: [] });
 
   useEffect(() => {
     Promise.all([
       ownerApi.listProperties().then(setListings).catch(() => setListings([])),
       ownerManagementApi.reservations().then(setReservations).catch(() => setReservations([])),
       earningsApi.owner().then(setEarnings).catch(() => undefined),
+      ownerManagementApi.payouts().then(setPayouts).catch(() => undefined),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -174,6 +176,15 @@ export default function OwnerDashboard() {
             <div><small>Gross</small><strong>₹{Number(earnings.gross).toLocaleString('en-IN')}</strong></div>
             <div><small>Refunded</small><strong>₹{Number(earnings.refunded).toLocaleString('en-IN')}</strong></div>
             <div><small>Net</small><strong>₹{Number(earnings.net).toLocaleString('en-IN')}</strong></div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Owner payouts</h2><p>Accommodation revenue after Nestora commission and refund adjustments.</p></div></div>
+          <div className="earnings-summary">
+            <div><small>Awaiting payout</small><strong>₹{Number(payouts.pending).toLocaleString('en-IN')}</strong></div>
+            <div><small>Paid out</small><strong>₹{Number(payouts.paid).toLocaleString('en-IN')}</strong></div>
+            <div><small>Platform commission</small><strong>₹{Number(payouts.commission).toLocaleString('en-IN')}</strong></div>
           </div>
         </div>
 
