@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: nestora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nestora
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - nestora_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  nestora_postgres_data:
