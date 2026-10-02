@@ -113,17 +113,28 @@ export const ownerApi = {
     }),
 
   uploadImage: async (file: File) => {
-    const token = localStorage.getItem('nestora_access_token');
+    let token = localStorage.getItem('nestora_access_token');
     if (!token) throw new Error('Please sign in first');
 
-    const body = new FormData();
-    body.append('file', file);
+    const upload = () => {
+      const body = new FormData();
+      body.append('file', file);
+      return fetch(API_BASE + '/owner/uploads/images', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+    };
 
-    const response = await fetch(API_BASE + '/owner/uploads/images', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body,
-    });
+    let response = await upload();
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        token = refreshed;
+        response = await upload();
+      }
+    }
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail ?? 'Image upload failed');
