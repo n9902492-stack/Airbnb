@@ -37,6 +37,7 @@ class PropertyBase(BaseModel):
     check_in_time: str = "14:00"
     check_out_time: str = "11:00"
     booking_mode: str = Field(default="instant", pattern="^(instant|request)$")
+    cancellation_policy: str = Field(default="moderate", pattern="^(flexible|moderate|strict)$")
 
 
 class PropertyCreate(PropertyBase):
@@ -70,6 +71,7 @@ class PropertyUpdate(BaseModel):
     check_in_time: str | None = None
     check_out_time: str | None = None
     booking_mode: str | None = Field(default=None, pattern="^(instant|request)$")
+    cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
 
 
 class PropertyRead(PropertyBase):
