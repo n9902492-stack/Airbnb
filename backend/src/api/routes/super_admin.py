@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import require_roles
 from src.db.session import get_db
-from src.models.booking import Booking
+from src.models.booking import Booking, BookingStatus
+from src.models.payment import Payment, PaymentStatus
 from src.models.property import Property, PropertyStatus
 from src.models.user import User, UserRole
 
@@ -33,6 +34,35 @@ async def overview(
     }
 
 
+@router.get("/bookings")
+async def admin_bookings(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    result = await db.execute(
+        select(Booking, Property, User, Payment)
+        .join(Property, Booking.property_id == Property.id)
+        .join(User, Booking.guest_id == User.id)
+        .outerjoin(Payment, Payment.booking_id == Booking.id)
+        .order_by(Booking.created_at.desc())
+        .limit(200)
+    )
+    return [
+        {
+            "booking_id": booking.id,
+            "property_title": property_obj.title,
+            "guest_name": guest.full_name,
+            "check_in": booking.check_in,
+            "check_out": booking.check_out,
+            "status": booking.status.value,
+            "total_amount": float(booking.total_amount),
+            "payment_status": payment.status.value if payment else None,
+            "refund_amount": float(payment.refund_amount or 0) if payment else 0,
+        }
+        for booking, property_obj, guest, payment in result.all()
+    ]
+
+
 @router.get("/properties/pending")
 async def pending_properties(
     db: AsyncSession = Depends(get_db),
@@ -56,6 +86,26 @@ async def pending_properties(
         }
         for item in result.scalars().all()
     ]
+
+
+@router.post("/bookings/{booking_id}/cancel")
+async def admin_cancel_booking(
+    booking_id: int,
+    reason: str = "Cancelled by platform administrator",
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    booking = await db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.status in {BookingStatus.CANCELLED, BookingStatus.COMPLETED}:
+        raise HTTPException(status_code=409, detail="Booking cannot be cancelled")
+
+    booking.status = BookingStatus.CANCELLED
+    booking.cancellation_reason = reason
+    await db.commit()
+    return {"booking_id": booking.id, "status": booking.status.value}
 
 
 @router.post("/properties/{property_id}/approve")
