@@ -148,6 +148,21 @@ export type TransferQuote = {
 };
 
 export const transferApi = {
+  createForBooking: (payload: {
+    booking_id: number;
+    property_id: number;
+    direction: 'pickup_to_stay' | 'stay_to_dropoff';
+    place_type: 'airport' | 'railway' | 'bus_stand' | 'custom';
+    place_name: string;
+    latitude: number;
+    longitude: number;
+  }) =>
+    request('/transfers', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
   searchPlaces: (query: string, propertyId: number) =>
     request<TransferPlace[]>('/transfers/places?q=' + encodeURIComponent(query) + '&property_id=' + propertyId),
 
