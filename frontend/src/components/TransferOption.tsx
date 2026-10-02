@@ -38,6 +38,7 @@ export default function TransferOption({
   const [quote, setQuote] = useState<TransferQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [saved, setSaved] = useState(false);
 
   async function searchPlaces() {
     if (query.trim().length < 2) return;
@@ -69,6 +70,8 @@ export default function TransferOption({
         place_name: place.name,
         latitude: place.latitude,
         longitude: place.longitude,
+        stay_latitude: latitude,
+        stay_longitude: longitude,
       });
       setQuote(value);
     } catch (err) {
@@ -160,6 +163,8 @@ export default function TransferOption({
         place_name: selected.name,
         latitude: selected.latitude,
         longitude: selected.longitude,
+        stay_latitude: latitude,
+        stay_longitude: longitude,
       });
       setQuote(value);
     } catch (err) {
@@ -314,10 +319,22 @@ export default function TransferOption({
               )}
 
               <p className="transfer-pricing-note">{quote.pricing_note}</p>
-              <button type="button" className="primary">
-                Add transfer · ₹{quote.estimated_fare.toLocaleString('en-IN')}
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  localStorage.setItem(
+                    'nestora_transfer_selection',
+                    JSON.stringify({ propertyId, ...quote }),
+                  );
+                  setSaved(true);
+                }}
+              >
+                {saved ? 'Transfer selected' : 'Add transfer · ₹' + quote.estimated_fare.toLocaleString('en-IN')}
               </button>
-              <small className="transfer-skip">You can skip this and book only the stay.</small>
+              <small className="transfer-skip">
+                {saved ? 'This transfer will be carried into checkout.' : 'You can skip this and book only the stay.'}
+              </small>
             </>
           )}
         </div>
