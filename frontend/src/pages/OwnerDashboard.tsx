@@ -211,6 +211,10 @@ export default function OwnerDashboard() {
                         <span>{item.duration_minutes} min</span>
                         <span>{item.instant_book ? 'Instant book' : 'Request to book'}</span>
                       </div>
+                      <div className="owner-listing-actions">
+                        <Link className="ghost dark" to={'/owner/offerings/' + item.id + '/edit'}>Calendar & slots</Link>
+                        {item.status === 'live' && <Link className="ghost dark" to={'/offerings/' + item.id}>View public page</Link>}
+                      </div>
                     </div>
                   </article>
                 );
