@@ -15,16 +15,29 @@ export const properties: Property[] = [
     baths: 2,
     category: 'Mountain',
     host: 'Aarav',
-    image: 'https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=1400&q=85',
     images: [
-      'https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=1400&q=85',
+      'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=1100&q=85',
     ],
-    description: 'A warm, design-led mountain home with floor-to-ceiling valley views, a fireplace and quiet outdoor deck.',
+    photos: [
+      { label: 'Exterior', url: 'https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=1400&q=85' },
+      { label: 'Living room', url: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bedroom', url: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bathroom', url: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Kitchen', url: 'https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=1100&q=85' },
+    ],
+    description: 'A warm, design-led mountain home with floor-to-ceiling valley views, a fireplace and a quiet outdoor deck.',
     amenities: ['Mountain view', 'Fast Wi-Fi', 'Indoor fireplace', 'Kitchen', 'Free parking', 'Heating'],
-    highlights: ['Self check-in', 'Valley-facing deck', 'Dedicated workspace']
+    highlights: ['Self check-in', 'Valley-facing deck', 'Dedicated workspace'],
+    customerReviews: [
+      { id: 1, guestName: 'Riya Mehta', rating: 5, date: 'September 2026', comment: 'The photos matched the house very well. The bedroom was spotless, the bathroom was modern, and the valley view was even better in person.' },
+      { id: 2, guestName: 'Arjun Kapoor', rating: 5, date: 'August 2026', comment: 'Very peaceful stay. The kitchen was properly equipped and the host shared clear check-in instructions. Great for a family trip.' },
+      { id: 3, guestName: 'Neha Singh', rating: 4, date: 'July 2026', comment: 'Beautiful property and comfortable rooms. The last part of the road is narrow, but the stay itself was excellent.' },
+    ],
   },
   {
     id: 2,
@@ -40,16 +53,28 @@ export const properties: Property[] = [
     baths: 4,
     category: 'Tropical',
     host: 'Mira',
-    image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1400&q=85',
     images: [
-      'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600566753051-f0b89df2dd90?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80'
+      'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1400&q=85',
+      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1100&q=85',
+    ],
+    photos: [
+      { label: 'Exterior', url: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1400&q=85' },
+      { label: 'Living room', url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bedroom', url: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bathroom', url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Kitchen', url: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1100&q=85' },
     ],
     description: 'A private tropical courtyard home made for slow mornings, long pool days and relaxed group stays.',
     amenities: ['Private pool', 'Breakfast', 'Air conditioning', 'Kitchen', 'Housekeeping', 'Garden'],
-    highlights: ['Private chef available', 'Quiet neighbourhood', 'Poolside dining']
+    highlights: ['Private chef available', 'Quiet neighbourhood', 'Poolside dining'],
+    customerReviews: [
+      { id: 1, guestName: 'Kabir Joshi', rating: 5, date: 'September 2026', comment: 'Excellent villa for a group. Every bedroom had privacy, bathrooms were very clean, and the pool area looked exactly like the listing.' },
+      { id: 2, guestName: 'Ananya Rao', rating: 5, date: 'August 2026', comment: 'We loved the courtyard and breakfast. The owner was responsive and the home had enough space for our whole family.' },
+    ],
   },
   {
     id: 3,
@@ -65,15 +90,27 @@ export const properties: Property[] = [
     baths: 1,
     category: 'City',
     host: 'Kabir',
-    image: 'https://images.unsplash.com/photo-1615874694520-474822394e73?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1615874694520-474822394e73?auto=format&fit=crop&w=1400&q=85',
     images: [
-      'https://images.unsplash.com/photo-1615874694520-474822394e73?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600607688960-e095ff83135c?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80'
+      'https://images.unsplash.com/photo-1615874694520-474822394e73?auto=format&fit=crop&w=1400&q=85',
+      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1564540583246-934409427776?auto=format&fit=crop&w=1100&q=85',
+      'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1100&q=85',
+    ],
+    photos: [
+      { label: 'Exterior', url: 'https://images.unsplash.com/photo-1615874694520-474822394e73?auto=format&fit=crop&w=1400&q=85' },
+      { label: 'Living room', url: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bedroom', url: 'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Bathroom', url: 'https://images.unsplash.com/photo-1564540583246-934409427776?auto=format&fit=crop&w=1100&q=85' },
+      { label: 'Kitchen', url: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1100&q=85' },
     ],
     description: 'An art-filled loft near Jaipur’s old city with handcrafted furniture and a calm rooftop breakfast corner.',
     amenities: ['Rooftop', 'Wi-Fi', 'Air conditioning', 'Breakfast', 'Workspace', 'Washer'],
-    highlights: ['Walkable old city', 'Local design', 'Hosted breakfast']
-  }
+    highlights: ['Walkable old city', 'Local design', 'Hosted breakfast'],
+    customerReviews: [
+      { id: 1, guestName: 'Ishita Verma', rating: 5, date: 'September 2026', comment: 'Perfect location for exploring Jaipur. The room felt thoughtfully designed and the listing gave an accurate picture of the space.' },
+      { id: 2, guestName: 'Dev Malhotra', rating: 4, date: 'August 2026', comment: 'Compact but very comfortable. Great for two people. Rooftop breakfast was a highlight.' },
+    ],
+  },
 ];
