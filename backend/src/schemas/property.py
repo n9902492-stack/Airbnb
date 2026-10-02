@@ -26,6 +26,9 @@ class PropertyBase(BaseModel):
 
     price_per_night: Decimal = Field(gt=0)
     cleaning_fee: Decimal = Field(default=0, ge=0)
+    weekend_price_per_night: Decimal | None = Field(default=None, gt=0)
+    minimum_stay_nights: int = Field(default=1, ge=1, le=90)
+    maximum_stay_nights: int | None = Field(default=None, ge=1, le=365)
 
     amenities: list[str] = []
     house_rules: list[str] = []
@@ -57,6 +60,9 @@ class PropertyUpdate(BaseModel):
     bathrooms: int | None = Field(default=None, ge=1)
     price_per_night: Decimal | None = Field(default=None, gt=0)
     cleaning_fee: Decimal | None = Field(default=None, ge=0)
+    weekend_price_per_night: Decimal | None = Field(default=None, gt=0)
+    minimum_stay_nights: int | None = Field(default=None, ge=1, le=90)
+    maximum_stay_nights: int | None = Field(default=None, ge=1, le=365)
     amenities: list[str] | None = None
     house_rules: list[str] | None = None
     image_urls: list[str] | None = None
