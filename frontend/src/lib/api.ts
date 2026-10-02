@@ -60,7 +60,23 @@ export const authApi = {
     }),
 };
 
+export type OwnerProperty = {
+  id: number;
+  title: string;
+  city: string;
+  state: string;
+  price_per_night: number;
+  status: 'draft' | 'pending' | 'live' | 'rejected' | 'paused';
+  image_urls: string[];
+  rejection_reason?: string | null;
+};
+
 export const ownerApi = {
+  listProperties: () =>
+    request<OwnerProperty[]>('/owner/properties', {
+      headers: authHeaders(),
+    }),
+
   createProperty: (payload: unknown) =>
     request('/owner/properties', {
       method: 'POST',
