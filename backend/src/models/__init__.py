@@ -1,3 +1,4 @@
+from src.models.promotion_redemption import PromotionRedemption
 from src.models.wishlist_vote import WishlistVote
 from src.models.support_case import SupportCase
 from src.models.resolution_claim import ResolutionClaim
@@ -32,6 +33,7 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "PromotionRedemption",
     "WishlistVote",
     "SupportCase",
     "ResolutionClaim",
