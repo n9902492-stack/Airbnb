@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Building2, Flag, LayoutDashboard, Shield, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { adminApi, adminBookingApi, type AdminBooking, type PendingProperty } from '../lib/api';
+import { adminApi, adminBookingApi, financeApi, type AdminBooking, type AdminFinance, type PendingProperty } from '../lib/api';
 
 export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState({ users: 0, owners: 0, listings: 0, bookings: 0 });
@@ -9,16 +9,19 @@ export default function SuperAdminDashboard() {
   const [reason, setReason] = useState<Record<number, string>>({});
   const [message, setMessage] = useState('');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
+  const [finance, setFinance] = useState<AdminFinance>({ collected: 0, refunds: 0, platform_commission: 0, owner_payable: 0, owner_paid: 0, payouts: [] });
 
   async function refresh() {
-    const [summary, items, bookingItems] = await Promise.all([
+    const [summary, items, bookingItems, financeData] = await Promise.all([
       adminApi.overview(),
       adminApi.pendingProperties(),
       adminBookingApi.list(),
+      financeApi.admin(),
     ]);
     setOverview(summary);
     setPending(items);
     setBookings(bookingItems);
+    setFinance(financeData);
   }
 
   useEffect(() => {
@@ -118,6 +121,26 @@ export default function SuperAdminDashboard() {
               })}
             </div>
           )}
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Platform finance</h2><p>Customer collections, refunds, Nestora commission and owner payout liability.</p></div></div>
+          <div className="finance-grid">
+            <div><small>Collected</small><strong>₹{Number(finance.collected).toLocaleString('en-IN')}</strong></div>
+            <div><small>Refunded</small><strong>₹{Number(finance.refunds).toLocaleString('en-IN')}</strong></div>
+            <div><small>Commission</small><strong>₹{Number(finance.platform_commission).toLocaleString('en-IN')}</strong></div>
+            <div><small>Owners payable</small><strong>₹{Number(finance.owner_payable).toLocaleString('en-IN')}</strong></div>
+            <div><small>Owners paid</small><strong>₹{Number(finance.owner_paid).toLocaleString('en-IN')}</strong></div>
+          </div>
+          <div className="payout-admin-list">
+            {finance.payouts.filter((payout) => payout.status === 'ready').map((payout) => (
+              <div key={payout.id}>
+                <span>Booking #{payout.booking_id} · Owner #{payout.owner_id}</span>
+                <strong>₹{Number(payout.owner_amount).toLocaleString('en-IN')}</strong>
+                <button className="ghost dark" onClick={async()=>{await financeApi.markPayoutPaid(payout.id); await refresh();}}>Mark paid</button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="panel admin-bookings-panel">
