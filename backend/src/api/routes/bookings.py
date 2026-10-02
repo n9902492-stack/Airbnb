@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_user
 from src.db.session import get_db
-from src.models.property import PropertyStatus
+from src.models.booking import Booking, BookingStatus
+from src.models.review import Review
 from src.models.user import User
+from src.models.property import PropertyStatus
 from src.schemas.booking import BookingCreate, BookingRead
 from src.services.booking_service import BookingService
 from src.services.property_service import PropertyService
@@ -33,3 +36,31 @@ async def create_booking(
         )
 
     return await BookingService.create(db, current_user.id, property_obj, payload)
+
+
+@router.get("/reviewable")
+async def reviewable_bookings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reviewed_booking_ids = select(Review.booking_id)
+
+    result = await db.execute(
+        select(Booking)
+        .where(
+            Booking.guest_id == current_user.id,
+            Booking.status == BookingStatus.COMPLETED,
+            Booking.id.not_in(reviewed_booking_ids),
+        )
+        .order_by(Booking.check_out.desc())
+    )
+
+    return [
+        {
+            "id": booking.id,
+            "property_id": booking.property_id,
+            "check_in": booking.check_in,
+            "check_out": booking.check_out,
+        }
+        for booking in result.scalars().all()
+    ]
