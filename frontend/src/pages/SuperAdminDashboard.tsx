@@ -10,6 +10,7 @@ export default function SuperAdminDashboard() {
   const [message, setMessage] = useState('');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [finance, setFinance] = useState<AdminFinance>({ collected: 0, refunds: 0, platform_commission: 0, owner_payable: 0, owner_paid: 0, payouts: [] });
+  const [linkedAccounts, setLinkedAccounts] = useState<Record<number,string>>({});
 
   async function refresh() {
     const [summary, items, bookingItems, financeData] = await Promise.all([
@@ -137,7 +138,19 @@ export default function SuperAdminDashboard() {
               <div key={payout.id}>
                 <span>Booking #{payout.booking_id} · Owner #{payout.owner_id}</span>
                 <strong>₹{Number(payout.owner_amount).toLocaleString('en-IN')}</strong>
-                <button className="ghost dark" onClick={async()=>{await financeApi.markPayoutPaid(payout.id); await refresh();}}>Mark paid</button>
+                <input
+                  placeholder="acc_..."
+                  value={linkedAccounts[payout.owner_id] ?? ''}
+                  onChange={(e)=>setLinkedAccounts((current)=>({...current,[payout.owner_id]:e.target.value}))}
+                />
+                <button className="ghost dark" onClick={async()=>{
+                  const accountId = linkedAccounts[payout.owner_id]?.trim();
+                  if (accountId) {
+                    await financeApi.setOwnerPayoutAccount(payout.owner_id, accountId);
+                    setMessage('Verified Razorpay Route linked account saved. Automatic payout worker will handle READY payouts.');
+                    await refresh();
+                  }
+                }}>Save payout account</button>
               </div>
             ))}
           </div>
