@@ -69,8 +69,9 @@ async def owner_reservations(
 ):
     await BookingLifecycleService.expire_unpaid(db)
     result = await db.execute(
-        select(Booking, Property)
+        select(Booking, Property, User)
         .join(Property, Booking.property_id == Property.id)
+        .join(User, Booking.guest_id == User.id)
         .where(Property.owner_id == current_user.id)
         .order_by(Booking.check_in.asc())
     )
@@ -80,13 +81,14 @@ async def owner_reservations(
             "property_id": property_obj.id,
             "property_title": property_obj.title,
             "guest_id": booking.guest_id,
+            "guest_name": guest.full_name,
             "check_in": booking.check_in,
             "check_out": booking.check_out,
             "guest_count": booking.guest_count,
             "total_amount": float(booking.total_amount),
             "status": booking.status.value,
         }
-        for booking, property_obj in result.all()
+        for booking, property_obj, guest in result.all()
     ]
 
 
