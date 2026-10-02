@@ -1,7 +1,9 @@
 import { BarChart3, CalendarDays, Home, Plus, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { authStore } from '../lib/auth';
 
 export default function OwnerDashboard() {
+  const user = authStore.getUser();
   const stats = [
     ['Active listings', '6'],
     ['Upcoming stays', '14'],
@@ -26,10 +28,10 @@ export default function OwnerDashboard() {
         <div className="dash-head">
           <div>
             <span className="eyebrow">Owner dashboard</span>
-            <h1>Good morning, Aarav</h1>
+            <h1>Good morning, {user?.full_name ?? 'Owner'}</h1>
             <p>Manage your homes, reservations and guest experience from one place.</p>
           </div>
-          <button className="primary inline"><Plus />Add property</button>
+          <Link to="/owner/properties/new" className="primary inline"><Plus />Add property</Link>
         </div>
 
         <div className="stats">
