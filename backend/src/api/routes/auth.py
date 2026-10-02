@@ -15,6 +15,7 @@ from src.schemas.verification import (
     ResetPasswordRequest,
     VerifyOtpRequest,
 )
+from src.services.auth_security_service import AuthSecurityService
 from src.services.auth_service import AuthService
 from src.services.email_service import EmailService
 from src.services.otp_service import OtpService
@@ -63,10 +64,14 @@ async def resend_verification_otp(
     payload: ResendOtpRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    if not await AuthSecurityService.otp_resend_allowed(db, payload.email):
+        raise HTTPException(status_code=429, detail="Please wait before requesting another OTP")
+
     user = await AuthService.get_by_email(db, payload.email)
     if user and not user.is_verified:
         _, otp = await OtpService.create(db, user.id, VerificationPurpose.EMAIL_VERIFICATION)
         await EmailService.send_otp(user.email, otp, VerificationPurpose.EMAIL_VERIFICATION.value)
+        await AuthSecurityService.record(db, payload.email, "otp_resend", True)
     return {"message": "If the account requires verification, a new OTP has been sent."}
 
 
@@ -75,14 +80,19 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
+    if not await AuthSecurityService.login_allowed(db, form.username):
+        raise HTTPException(status_code=429, detail="Too many failed login attempts. Try again later.")
+
     user = await AuthService.get_by_email(db, form.username)
     if user and not user.is_verified:
         raise HTTPException(status_code=403, detail="Verify your email before signing in")
 
     user = await AuthService.authenticate(db, form.username, form.password)
     if not user:
+        await AuthSecurityService.record(db, form.username, "login", False)
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
+    await AuthSecurityService.record(db, form.username, "login", True)
     return TokenResponse(access_token=create_access_token(str(user.id)))
 
 
