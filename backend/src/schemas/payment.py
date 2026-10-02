@@ -8,6 +8,8 @@ class CheckoutPreview(BaseModel):
     stay_subtotal: Decimal
     service_fee: Decimal
     transfer_fee: Decimal
+    discount_amount: Decimal = Decimal("0")
+    promo_code: str | None = None
     gst_rate: Decimal
     gst_amount: Decimal
     grand_total: Decimal
