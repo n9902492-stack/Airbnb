@@ -1,9 +1,28 @@
-.DS_Store
-.vscode/
-.idea/
+# Secrets
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+!backend/.env.example
+!backend/.env.production.example
+
+# Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Backend
 backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.production.example
 backend/.venv/
-backend/__pycache__/
-backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+**/__pycache__/
+*.py[cod]
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
