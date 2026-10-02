@@ -14,8 +14,8 @@ from src.models.cohost import PropertyCoHost
 from src.models.property import Property
 from src.models.special_offer import SpecialOffer
 from src.models.user import User, UserRole
-from src.models.wishlist import WishlistItem
 from src.models.wishlist_collection import WishlistCollection, WishlistCollectionMember
+from src.models.wishlist_collection_item import WishlistCollectionItem
 from src.services.notification_service import NotificationService
 
 
@@ -213,15 +213,16 @@ async def add_collection_item(
         raise HTTPException(status_code=404, detail="Property not found")
 
     existing = await db.scalar(
-        select(WishlistItem).where(
-            WishlistItem.user_id == collection.owner_user_id,
-            WishlistItem.property_id == payload.property_id,
+        select(WishlistCollectionItem).where(
+            WishlistCollectionItem.collection_id == collection_id,
+            WishlistCollectionItem.property_id == payload.property_id,
         )
     )
     if not existing:
-        db.add(WishlistItem(
-            user_id=collection.owner_user_id,
+        db.add(WishlistCollectionItem(
+            collection_id=collection_id,
             property_id=payload.property_id,
+            added_by_user_id=current_user.id,
         ))
         await db.commit()
     return {"ok": True}
