@@ -16,6 +16,7 @@ from src.schemas.availability import AvailabilityBlockCreate
 from src.schemas.pricing import PricingRuleCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from src.services.image_service import ImageService
+from src.services.notification_service import NotificationService
 from src.services.property_service import PropertyService
 from src.services.booking_lifecycle_service import BookingLifecycleService
 
@@ -66,6 +67,80 @@ async def create_availability_block(
         "reason": block.reason,
     }
 
+
+
+
+@router.post("/booking-requests/{booking_id}/accept")
+async def accept_booking_request(
+    booking_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    booking = await db.get(Booking, booking_id)
+    if not booking or booking.status != BookingStatus.REQUESTED:
+        raise HTTPException(status_code=404, detail="Booking request not found")
+    property_obj = await db.get(Property, booking.property_id)
+    if not property_obj or (
+        current_user.role != UserRole.SUPER_ADMIN
+        and property_obj.owner_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Not your booking request")
+
+    from datetime import datetime, timedelta, timezone
+    from src.core.config import settings
+    from src.services.availability_service import AvailabilityService
+
+    available = await AvailabilityService.is_available(
+        db, booking.property_id, booking.check_in, booking.check_out
+    )
+    if not available:
+        booking.status = BookingStatus.CANCELLED
+        booking.cancellation_reason = "Dates became unavailable before host acceptance"
+        await db.commit()
+        raise HTTPException(status_code=409, detail="Dates are no longer available")
+
+    booking.status = BookingStatus.PENDING
+    booking.expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.booking_hold_minutes
+    )
+    await db.commit()
+    await NotificationService.create(
+        db,
+        booking.guest_id,
+        "booking_request_accepted",
+        "Your booking request was accepted",
+        f"Complete payment for booking #{booking.id} before the hold expires.",
+    )
+    return {"booking_id": booking.id, "status": booking.status.value, "expires_at": booking.expires_at}
+
+
+@router.post("/booking-requests/{booking_id}/decline")
+async def decline_booking_request(
+    booking_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    booking = await db.get(Booking, booking_id)
+    if not booking or booking.status != BookingStatus.REQUESTED:
+        raise HTTPException(status_code=404, detail="Booking request not found")
+    property_obj = await db.get(Property, booking.property_id)
+    if not property_obj or (
+        current_user.role != UserRole.SUPER_ADMIN
+        and property_obj.owner_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Not your booking request")
+
+    booking.status = BookingStatus.CANCELLED
+    booking.cancellation_reason = "Declined by host"
+    await db.commit()
+    await NotificationService.create(
+        db,
+        booking.guest_id,
+        "booking_request_declined",
+        "Booking request declined",
+        f"The host declined booking request #{booking.id}.",
+    )
+    return {"booking_id": booking.id, "status": booking.status.value}
 
 @router.get("/reservations")
 async def owner_reservations(
