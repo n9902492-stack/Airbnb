@@ -9,6 +9,7 @@ from src.models.payment import Payment, PaymentStatus
 from src.models.property import Property
 from src.models.user import User
 from src.services.email_service import EmailService
+from src.services.job_queue import JobQueue
 from src.services.notification_service import NotificationService
 from src.services.payout_service import PayoutService
 from src.services.razorpay_service import RazorpayService
@@ -89,14 +90,17 @@ class CancellationService:
             )
 
         if guest and property_obj:
-            try:
-                await EmailService.send_cancellation_receipt(
-                    guest.email,
-                    property_obj.title,
-                    f"{refund_amount:.2f}",
-                    percent,
-                )
-            except Exception:
-                pass
+            email_payload = {
+                "email": guest.email,
+                "property_title": property_obj.title,
+                "refund_amount": f"{refund_amount:.2f}",
+                "refund_percent": percent,
+            }
+            queued = await JobQueue.enqueue("cancellation_email", email_payload)
+            if not queued:
+                try:
+                    await EmailService.send_cancellation_receipt(**email_payload)
+                except Exception:
+                    pass
 
         return percent, refund_amount
