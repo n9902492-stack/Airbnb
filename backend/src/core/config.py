@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1"
 
     secret_key: str = "change-this-in-your-local-env"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
+    refresh_cookie_name: str = "nestora_refresh_token"
+    refresh_cookie_secure: bool = False
 
     otp_expire_minutes: int = 10
     otp_max_attempts: int = 5
@@ -53,6 +56,20 @@ class Settings(BaseSettings):
     login_max_attempts: int = 5
     login_attempt_window_minutes: int = 15
     otp_resend_cooldown_seconds: int = 60
+
+    redis_url: str = ""
+    redis_job_queue: str = "nestora:jobs"
+
+    storage_provider: str = "local"
+    s3_endpoint_url: str = ""
+    s3_region: str = ""
+    s3_bucket: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    cdn_base_url: str = ""
+
+    gst_rate_percent: float = 18.0
+    sentry_dsn: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
