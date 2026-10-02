@@ -429,9 +429,11 @@ async def update_collection(
     collection = await _collection_access(db, collection_id, current_user.id)
     data = payload.model_dump(exclude_unset=True)
     if "proposed_start_date" in data:
-        collection.proposed_start_date = date.fromisoformat(data.pop("proposed_start_date")) if data["proposed_start_date"] else None
+        raw_start = data.pop("proposed_start_date")
+        collection.proposed_start_date = date.fromisoformat(raw_start) if raw_start else None
     if "proposed_end_date" in data:
-        collection.proposed_end_date = date.fromisoformat(data.pop("proposed_end_date")) if data["proposed_end_date"] else None
+        raw_end = data.pop("proposed_end_date")
+        collection.proposed_end_date = date.fromisoformat(raw_end) if raw_end else None
     for key, value in data.items():
         setattr(collection, key, value)
     await db.commit()
