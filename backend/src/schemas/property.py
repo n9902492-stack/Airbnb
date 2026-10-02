@@ -16,6 +16,8 @@ class PropertyBase(BaseModel):
     state: str
     country: str = "India"
     postal_code: str
+    latitude: float | None = None
+    longitude: float | None = None
 
     guests: int = Field(ge=1)
     bedrooms: int = Field(ge=0)
@@ -47,6 +49,8 @@ class PropertyUpdate(BaseModel):
     state: str | None = None
     country: str | None = None
     postal_code: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     guests: int | None = Field(default=None, ge=1)
     bedrooms: int | None = Field(default=None, ge=0)
     beds: int | None = Field(default=None, ge=1)
