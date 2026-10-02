@@ -39,5 +39,7 @@ class Payment(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refund_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     booking = relationship("Booking", back_populates="payment")
