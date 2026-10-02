@@ -3,7 +3,8 @@ import { Heart, Home, LogOut, Suitcase, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { authStore } from '../lib/auth';
-import { bookingApi } from '../lib/api';
+import { bookingApi, wishlistApi, type WishlistItem } from '../lib/api';
+import NotificationsPanel from '../components/NotificationsPanel';
 
 type Trip = Awaited<ReturnType<typeof bookingApi.myTrips>>[number];
 
@@ -12,10 +13,16 @@ export default function UserDashboard() {
   const user = authStore.getUser();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [message, setMessage] = useState('');
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
   async function loadTrips() {
     try {
-      setTrips(await bookingApi.myTrips());
+      const [tripItems, saved] = await Promise.all([
+        bookingApi.myTrips(),
+        wishlistApi.list(),
+      ]);
+      setTrips(tripItems);
+      setWishlist(saved);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Unable to load trips');
     }
@@ -129,6 +136,7 @@ export default function UserDashboard() {
                   )}
 
                   <div className="trip-actions">
+                    <Link className="ghost dark" to={'/messages/' + trip.id}>Message host</Link>
                     {trip.status === 'pending' && (
                       <Link className="primary inline" to={'/checkout/' + trip.id}>Continue payment</Link>
                     )}
@@ -141,6 +149,22 @@ export default function UserDashboard() {
             </div>
           )}
         </div>
+
+        <div className="panel">
+          <div className="section-head">
+            <div><h2>Saved stays</h2><p>Your wishlist stays connected to live properties.</p></div>
+          </div>
+          <div className="saved-grid">
+            {wishlist.length === 0 ? <p>No saved stays yet.</p> : wishlist.map((item) => (
+              <Link className="saved-card" to={'/stays/' + item.property_id} key={item.id}>
+                {item.image_urls?.[0] && <img src={item.image_urls[0].startsWith('/uploads') ? 'http://localhost:8000' + item.image_urls[0] : item.image_urls[0]} alt={item.title}/>}
+                <div><strong>{item.title}</strong><small>{item.city}, {item.state}</small><span>₹{Number(item.price_per_night).toLocaleString('en-IN')}/night</span></div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <NotificationsPanel />
       </section>
     </main>
   );
