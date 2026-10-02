@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Home, Plus, Star, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { authStore } from '../lib/auth';
-import { ownerApi, type OwnerProperty } from '../lib/api';
+import { ownerApi, ownerManagementApi, type OwnerProperty } from '../lib/api';
 
 const examples: OwnerProperty[] = [
   {
@@ -29,12 +29,13 @@ export default function OwnerDashboard() {
   const user = authStore.getUser();
   const [listings, setListings] = useState<OwnerProperty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reservations, setReservations] = useState<Awaited<ReturnType<typeof ownerManagementApi.reservations>>>([]);
 
   useEffect(() => {
-    ownerApi.listProperties()
-      .then(setListings)
-      .catch(() => setListings([]))
-      .finally(() => setLoading(false));
+    Promise.all([
+      ownerApi.listProperties().then(setListings).catch(() => setListings([])),
+      ownerManagementApi.reservations().then(setReservations).catch(() => setReservations([])),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const visibleListings = listings.length ? listings : examples;
@@ -44,9 +45,9 @@ export default function OwnerDashboard() {
   const stats = useMemo(() => [
     ['Live listings', String(liveCount)],
     ['Pending review', String(pendingCount)],
-    ['Example bookings', '14'],
+    ['Reservations', String(reservations.length)],
     ['Avg. rating', '4.91'],
-  ], [liveCount, pendingCount]);
+  ], [liveCount, pendingCount, reservations.length]);
 
   return (
     <main className="dashboard">
@@ -122,6 +123,46 @@ export default function OwnerDashboard() {
               );
             })}
           </div>
+        </div>
+
+        <div className="panel owner-reservations-panel">
+          <div className="section-head">
+            <div>
+              <h2>Reservations</h2>
+              <p>Upcoming and recent reservations across your PostgreSQL listings.</p>
+            </div>
+          </div>
+
+          {reservations.length === 0 ? (
+            <p>No reservations yet.</p>
+          ) : (
+            <div className="reservation-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Property</th>
+                    <th>Guest</th>
+                    <th>Dates</th>
+                    <th>Guests</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reservations.map((reservation) => (
+                    <tr key={reservation.booking_id}>
+                      <td>{reservation.property_title}</td>
+                      <td>Guest #{reservation.guest_id}</td>
+                      <td>{reservation.check_in} → {reservation.check_out}</td>
+                      <td>{reservation.guest_count}</td>
+                      <td><span className={'booking-status ' + reservation.status}>{reservation.status}</span></td>
+                      <td>₹{Number(reservation.total_amount).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
     </main>
