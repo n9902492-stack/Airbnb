@@ -36,3 +36,4 @@ class User(Base):
     wishlist_items = relationship("WishlistItem", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     payout_account = relationship("OwnerPayoutAccount", uselist=False, cascade="all, delete-orphan")
+    auth_sessions = relationship("AuthSession", cascade="all, delete-orphan")
