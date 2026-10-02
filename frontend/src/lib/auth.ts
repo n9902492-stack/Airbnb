@@ -34,5 +34,5 @@ export const authStore = {
 export function homeForRole(role: UserRole) {
   if (role === 'owner') return '/owner';
   if (role === 'super_admin') return '/super-admin';
-  return '/';
+  return '/user';
 }
