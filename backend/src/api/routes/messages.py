@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.deps import get_current_user
 from src.db.session import get_db
 from src.models.booking import Booking
+from src.models.booking_participant import BookingParticipant
 from src.models.message import BookingMessage
 from src.models.property import Property
 from src.services.cohost_service import CoHostService
@@ -34,6 +35,15 @@ async def _authorized_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
 
     if booking.guest_id == user.id:
+        return booking
+
+    participant = await db.scalar(
+        select(BookingParticipant).where(
+            BookingParticipant.booking_id == booking.id,
+            BookingParticipant.user_id == user.id,
+        )
+    )
+    if participant:
         return booking
 
     property_obj = await db.get(Property, booking.property_id)
