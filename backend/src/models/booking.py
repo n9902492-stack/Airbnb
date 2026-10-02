@@ -10,6 +10,7 @@ from src.db.base import Base
 
 class BookingStatus(str, enum.Enum):
     PENDING = "pending"
+    REQUESTED = "requested"
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
     COMPLETED = "completed"
