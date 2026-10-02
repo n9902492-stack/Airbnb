@@ -152,20 +152,38 @@ async def my_change_requests(
         .where(Booking.guest_id == current_user.id)
         .order_by(BookingChangeRequest.created_at.desc())
     )
-    return [
-        {
-            "id": c.id,
-            "booking_id": b.id,
-            "new_check_in": c.new_check_in,
-            "new_check_out": c.new_check_out,
-            "new_guest_count": c.new_guest_count,
-            "old_total_amount": float(c.old_total_amount),
-            "new_total_amount": float(c.new_total_amount),
-            "price_difference": float(c.price_difference),
-            "status": c.status,
-        }
-        for c, b in result.all()
-    ]
+    items = []
+    for change, booking in result.all():
+        adjustment = await db.scalar(
+            select(BookingChangePayment).where(
+                BookingChangePayment.change_request_id == change.id
+            )
+        )
+        items.append({
+            "id": change.id,
+            "booking_id": booking.id,
+            "new_check_in": change.new_check_in,
+            "new_check_out": change.new_check_out,
+            "new_guest_count": change.new_guest_count,
+            "old_total_amount": float(change.old_total_amount),
+            "new_total_amount": float(change.new_total_amount),
+            "price_difference": float(change.price_difference),
+            "status": change.status,
+            "adjustment": (
+                {
+                    "id": adjustment.id,
+                    "amount": float(adjustment.amount),
+                    "provider": adjustment.provider,
+                    "status": adjustment.status,
+                    "provider_order_id": adjustment.provider_order_id,
+                    "razorpay_key_id": settings.razorpay_key_id if adjustment.provider == "razorpay" else None,
+                    "amount_paise": int(Decimal(adjustment.amount) * 100),
+                }
+                if adjustment
+                else None
+            ),
+        })
+    return items
 
 
 @router.get("/host/requests")
