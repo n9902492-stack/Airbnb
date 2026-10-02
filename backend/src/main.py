@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.api.router import api_router
 from src.core.config import settings
@@ -27,6 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/uploads", StaticFiles(directory="uploads", check_dir=False), name="uploads")
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
