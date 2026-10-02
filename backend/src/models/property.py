@@ -53,6 +53,8 @@ class Property(Base):
 
     check_in_time: Mapped[str] = mapped_column(String(20), default="14:00", nullable=False)
     check_out_time: Mapped[str] = mapped_column(String(20), default="11:00", nullable=False)
+    booking_mode: Mapped[str] = mapped_column(String(30), default="instant", index=True, nullable=False)
+    guest_favorite: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
 
     status: Mapped[PropertyStatus] = mapped_column(
         Enum(PropertyStatus, name="property_status"),
@@ -75,3 +77,4 @@ class Property(Base):
     availability_blocks = relationship("AvailabilityBlock", back_populates="property", cascade="all, delete-orphan")
     wishlist_items = relationship("WishlistItem", back_populates="property", cascade="all, delete-orphan")
     pricing_rules = relationship("PricingRule", back_populates="property", cascade="all, delete-orphan")
+    cohosts = relationship("PropertyCoHost", cascade="all, delete-orphan")
