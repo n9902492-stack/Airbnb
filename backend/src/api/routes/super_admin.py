@@ -33,6 +33,31 @@ async def overview(
     }
 
 
+@router.get("/properties/pending")
+async def pending_properties(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    result = await db.execute(
+        select(Property)
+        .where(Property.status == PropertyStatus.PENDING)
+        .order_by(Property.created_at.asc())
+    )
+    return [
+        {
+            "id": item.id,
+            "title": item.title,
+            "owner_id": item.owner_id,
+            "city": item.city,
+            "state": item.state,
+            "price_per_night": float(item.price_per_night),
+            "image_urls": item.image_urls,
+            "created_at": item.created_at,
+        }
+        for item in result.scalars().all()
+    ]
+
+
 @router.post("/properties/{property_id}/approve")
 async def approve_property(
     property_id: int,
