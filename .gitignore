@@ -1,0 +1,9 @@
+.DS_Store
+.vscode/
+.idea/
+frontend/node_modules/
+frontend/dist/
+backend/.env
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
