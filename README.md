@@ -142,3 +142,99 @@ http://localhost:5173
 - `core`: settings/security/shared infrastructure
 
 This keeps route code small and makes the project easier to understand and extend.
+
+
+## Booking lifecycle and payments
+
+Nestora now supports:
+
+- PostgreSQL-backed availability and date blocking
+- 15-minute unpaid reservation holds
+- Automatic expiry of unpaid bookings
+- Customer My Trips
+- Owner reservation management
+- Guest cancellation and refund calculation
+- Razorpay-ready live checkout
+- Signed Razorpay checkout verification
+- HMAC-verified Razorpay webhooks
+- Development/demo payment fallback
+
+### Payment environment variables
+
+Keep real keys only in `backend/.env`:
+
+```env
+BOOKING_HOLD_MINUTES=15
+
+# Use demo locally, razorpay for live/test Razorpay checkout.
+PAYMENT_PROVIDER=demo
+
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+
+CANCELLATION_FULL_REFUND_HOURS=48
+CANCELLATION_PARTIAL_REFUND_HOURS=24
+CANCELLATION_PARTIAL_REFUND_PERCENT=50
+```
+
+To enable Razorpay:
+
+```env
+PAYMENT_PROVIDER=razorpay
+RAZORPAY_KEY_ID=your_key_id
+RAZORPAY_KEY_SECRET=your_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+```
+
+Never put `RAZORPAY_KEY_SECRET` or `RAZORPAY_WEBHOOK_SECRET` in the frontend.
+
+### Razorpay webhook
+
+Configure the Razorpay webhook to call:
+
+```text
+POST https://YOUR_PUBLIC_API_DOMAIN/api/v1/payments/webhooks/razorpay
+```
+
+Subscribe at minimum to:
+
+```text
+payment.captured
+```
+
+The API validates the `X-Razorpay-Signature` before processing a webhook.
+
+### Cancellation policy defaults
+
+The current configurable development policy is:
+
+```text
+48+ hours before check-in: 100% refund
+24–48 hours before check-in: 50% refund
+Less than 24 hours: no refund
+```
+
+These values are configuration, not hard-coded business policy.
+
+### Booking holds
+
+A new unpaid booking receives an expiration time. By default it is held for 15 minutes. A backend lifecycle worker checks every minute and cancels expired unpaid bookings, which releases those dates back into availability.
+
+### Apply latest migrations
+
+```powershell
+cd backend
+.venv\Scripts\activate
+alembic upgrade head
+```
+
+The current migration chain includes:
+
+```text
+20261002_01 initial auth/properties/bookings
+20261002_02 reviews
+20261002_03 transfers and property coordinates
+20261002_04 availability and payments
+20261002_05 booking expiry, cancellation and refunds
+```
