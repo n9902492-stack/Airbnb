@@ -1,0 +1,2 @@
+Alembic migrations for the Nestora PostgreSQL database.
+Run from backend/: alembic upgrade head
