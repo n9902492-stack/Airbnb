@@ -3,7 +3,7 @@ import {
   API_BASE_URL as API_BASE,
   apiRequest as request,
   authHeaders,
-  refreshAccessToken,
+  uploadFileWithAuth,
 } from '../api/client';
 
 export const authApi = {
@@ -76,34 +76,8 @@ export const ownerApi = {
       headers: authHeaders(),
     }),
 
-  uploadImage: async (file: File) => {
-    let token = localStorage.getItem('nestora_access_token');
-    if (!token) throw new Error('Please sign in first');
-
-    const upload = () => {
-      const body = new FormData();
-      body.append('file', file);
-      return fetch(API_BASE + '/owner/uploads/images', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { Authorization: `Bearer ${token}` },
-        body,
-      });
-    };
-
-    let response = await upload();
-    if (response.status === 401) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        token = refreshed;
-        response = await upload();
-      }
-    }
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail ?? 'Image upload failed');
-    return data as { url: string };
-  },
+  uploadImage: (file: File) =>
+    uploadFileWithAuth<{ url: string }>('/owner/uploads/images', file),
 
   createProperty: (payload: unknown) =>
     request('/owner/properties', {
@@ -655,31 +629,8 @@ export const messageApi = {
       headers: authHeaders(),
     }),
 
-  uploadImage: async (file: File) => {
-    let token = localStorage.getItem('nestora_access_token');
-    if (!token) throw new Error('Please sign in first');
-    const upload = () => {
-      const body = new FormData();
-      body.append('file', file);
-      return fetch(API_BASE + '/messages/uploads/image', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { Authorization: 'Bearer ' + token },
-        body,
-      });
-    };
-    let response = await upload();
-    if (response.status === 401) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        token = refreshed;
-        response = await upload();
-      }
-    }
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail ?? 'Attachment upload failed');
-    return data as { url: string };
-  },
+  uploadImage: (file: File) =>
+    uploadFileWithAuth<{ url: string }>('/messages/uploads/image', file),
 };
 
 export type NotificationItem = {
