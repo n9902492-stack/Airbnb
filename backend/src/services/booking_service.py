@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.booking import Booking
 from src.models.property import Property
 from src.schemas.booking import BookingCreate
+from src.services.availability_service import AvailabilityService
 
 
 class BookingService:
@@ -18,6 +19,15 @@ class BookingService:
         property_obj: Property,
         payload: BookingCreate,
     ) -> Booking:
+        available = await AvailabilityService.is_available(
+            db,
+            property_obj.id,
+            payload.check_in,
+            payload.check_out,
+        )
+        if not available:
+            raise ValueError("Selected dates are no longer available")
+
         nights = (payload.check_out - payload.check_in).days
         subtotal = property_obj.price_per_night * nights + property_obj.cleaning_fee
         service_fee = subtotal * cls.SERVICE_FEE_RATE
