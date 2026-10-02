@@ -16,3 +16,4 @@ boto3==1.40.31
 sentry-sdk[fastapi]==2.37.1
 pytest==8.4.2
 pytest-asyncio==1.1.0
+Pillow==11.3.0
