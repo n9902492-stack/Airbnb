@@ -13,6 +13,7 @@ from src.services.invoice_service import InvoiceService
 from src.services.job_queue import JobQueue
 from src.services.notification_service import NotificationService
 from src.services.payout_service import PayoutService
+from src.services.promotion_service import PromotionService
 from src.services.razorpay_service import RazorpayService
 from src.services.tax_service import TaxService
 
@@ -23,10 +24,18 @@ class PaymentService:
         db: AsyncSession,
         booking: Booking,
         transfer_fee: Decimal = Decimal("0"),
+        promo_code: str | None = None,
     ) -> Payment:
-        taxable_amount = Decimal(booking.total_amount) + transfer_fee
+        pre_discount = Decimal(booking.total_amount) + transfer_fee
+        promo, discount = await PromotionService.calculate_discount(
+            db, promo_code, pre_discount
+        )
+        taxable_amount = max(Decimal("0"), pre_discount - discount)
         _, gst_amount = TaxService.calculate(taxable_amount)
         amount = taxable_amount + gst_amount
+
+        booking.discount_amount = discount
+        booking.promo_code = promo.code if promo else None
         provider = "razorpay" if settings.payment_provider == "razorpay" else "manual_demo"
 
         payment = Payment(
@@ -85,6 +94,7 @@ class PaymentService:
 
         await PayoutService.ensure_for_paid_booking(db, booking, payment.amount)
         await InvoiceService.ensure_for_booking(db, booking, payment.amount)
+        await PromotionService.consume(db, booking)
 
         property_obj = await db.get(Property, booking.property_id)
         guest = await db.get(User, booking.guest_id)
