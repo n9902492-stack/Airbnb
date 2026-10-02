@@ -8,6 +8,8 @@ class PlaceResult(BaseModel):
     full_address: str
     latitude: float
     longitude: float
+    stay_latitude: float | None = None
+    stay_longitude: float | None = None
 
 
 class TransferQuoteRequest(BaseModel):
