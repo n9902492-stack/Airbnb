@@ -1,3 +1,4 @@
+from src.models.credit import CreditLedger, GiftCreditCode, UserCreditAccount
 from src.models.booking_participant import BookingParticipant
 from src.models.booking_change_payment import BookingChangePayment
 from src.models.booking_change import BookingChangeRequest
@@ -36,6 +37,9 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "UserCreditAccount",
+    "GiftCreditCode",
+    "CreditLedger",
     "BookingParticipant",
     "BookingChangePayment",
     "BookingChangeRequest",
