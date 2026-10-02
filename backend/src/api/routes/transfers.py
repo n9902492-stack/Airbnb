@@ -47,10 +47,15 @@ async def quote_transfer(
     property_obj = await db.get(Property, payload.property_id)
     if property_obj and property_obj.latitude is not None and property_obj.longitude is not None:
         stay = (property_obj.latitude, property_obj.longitude)
-    elif payload.stay_latitude is not None and payload.stay_longitude is not None:
-        stay = (payload.stay_latitude, payload.stay_longitude)
     else:
-        raise HTTPException(status_code=400, detail="Property map location is not configured")
+        demo_locations = {
+            1: (32.2396, 77.1887),
+            2: (15.5910, 73.7669),
+            3: (26.9239, 75.8267),
+        }
+        stay = demo_locations.get(payload.property_id)
+        if not stay:
+            raise HTTPException(status_code=400, detail="Property map location is not configured")
     selected = (payload.latitude, payload.longitude)
 
     origin, destination = (
