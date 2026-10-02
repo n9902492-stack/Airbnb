@@ -162,6 +162,9 @@ export default function UserDashboard() {
                     {trip.status === 'pending' && (
                       <Link className="primary inline" to={'/checkout/' + trip.id}>Continue payment</Link>
                     )}
+                    {trip.status === 'confirmed' && (
+                      <Link className="ghost dark" to={'/bookings/' + trip.id + '/change'}>Change reservation</Link>
+                    )}
                     {['pending', 'confirmed'].includes(trip.status) && (
                       <button className="ghost dark" onClick={() => void cancelTrip(trip.id)}>Cancel booking</button>
                     )}
