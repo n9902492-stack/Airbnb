@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.deps import get_current_user
 from src.db.session import get_db
 from src.models.host_profile import HostProfile
+from src.models.identity_verification import IdentityVerification
 from src.models.property import Property, PropertyStatus
 from src.models.review import Review
 from src.models.user import User
@@ -25,6 +26,11 @@ async def public_host_profile(
 
     profile = await db.scalar(
         select(HostProfile).where(HostProfile.user_id == host_id)
+    )
+    identity = await db.scalar(
+        select(IdentityVerification).where(
+            IdentityVerification.user_id == host_id
+        )
     )
     listings = await db.scalar(
         select(func.count(Property.id)).where(
@@ -47,7 +53,7 @@ async def public_host_profile(
         "languages": profile.languages if profile else [],
         "interests": profile.interests if profile else [],
         "work": profile.work if profile else None,
-        "verified_identity": profile.verified_identity if profile else False,
+        "verified_identity": bool(identity and identity.status == "verified"),
         "response_rate": profile.response_rate if profile else 100,
         "response_time_label": profile.response_time_label if profile else "within an hour",
         "live_listings": listings or 0,
