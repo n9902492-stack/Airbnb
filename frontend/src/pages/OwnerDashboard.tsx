@@ -113,9 +113,9 @@ export default function OwnerDashboard() {
                     </div>
                     {item.rejection_reason && <div className="auth-error">{item.rejection_reason}</div>}
                     <div className="owner-listing-actions">
-                      <button className="ghost dark">Edit details</button>
-                      <button className="ghost dark">Manage photos</button>
-                      <button className="ghost dark">Availability</button>
+                      <Link className="ghost dark" to={'/owner/properties/' + item.id + '/edit'}>Edit details</Link>
+                      <Link className="ghost dark" to={'/owner/properties/' + item.id + '/edit'}>Manage photos</Link>
+                      <Link className="ghost dark" to={'/owner/properties/' + item.id + '/edit'}>Availability</Link>
                     </div>
                   </div>
                 </article>
