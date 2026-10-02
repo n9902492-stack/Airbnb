@@ -6,6 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
+from src.models.property import Property
+from src.models.user import User
+from src.services.email_service import EmailService
+from src.services.notification_service import NotificationService
 from src.services.razorpay_service import RazorpayService
 
 
@@ -72,4 +76,38 @@ class PaymentService:
 
         await db.commit()
         await db.refresh(payment)
+
+        property_obj = await db.get(Property, booking.property_id)
+        guest = await db.get(User, booking.guest_id)
+
+        if guest:
+            await NotificationService.create(
+                db,
+                guest.id,
+                "booking_confirmed",
+                "Booking confirmed",
+                f"Your booking #{booking.id} is confirmed.",
+            )
+
+        if property_obj:
+            await NotificationService.create(
+                db,
+                property_obj.owner_id,
+                "new_reservation",
+                "New reservation",
+                f"{property_obj.title} received booking #{booking.id}.",
+            )
+
+        if guest and property_obj:
+            try:
+                await EmailService.send_booking_confirmation(
+                    guest.email,
+                    property_obj.title,
+                    str(booking.check_in),
+                    str(booking.check_out),
+                    f"{payment.amount:.2f}",
+                )
+            except Exception:
+                pass
+
         return payment
