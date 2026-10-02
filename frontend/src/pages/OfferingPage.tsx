@@ -11,14 +11,23 @@ export default function OfferingPage() {
   const navigate = useNavigate();
   const user = authStore.getUser();
   const [item, setItem] = useState<MarketplaceOffering | null>(null);
-  const [scheduledAt, setScheduledAt] = useState('');
+  const [slots, setSlots] = useState<Awaited<ReturnType<typeof offeringApi.slots>>>([]);
+  const [slotId, setSlotId] = useState<number | ''>('');
   const [guests, setGuests] = useState(1);
+  const [privateGroup, setPrivateGroup] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    offeringApi.get(Number(id))
-      .then(setItem)
+    Promise.all([
+      offeringApi.get(Number(id)),
+      offeringApi.slots(Number(id)),
+    ])
+      .then(([offering, availability]) => {
+        setItem(offering);
+        setSlots(availability);
+        setSlotId(availability[0]?.id ?? '');
+      })
       .catch((err) => setMessage(err instanceof Error ? err.message : 'Unable to load offering'));
   }, [id]);
 
@@ -54,8 +63,8 @@ export default function OfferingPage() {
       navigate('/auth');
       return;
     }
-    if (!scheduledAt) {
-      setMessage('Choose a date and time first.');
+    if (slotId === '') {
+      setMessage('Choose an available time first.');
       return;
     }
 
@@ -63,8 +72,9 @@ export default function OfferingPage() {
     setMessage('');
     try {
       const booking = await offeringApi.book(item.id, {
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        slot_id: Number(slotId),
         guest_count: guests,
+        private_group: privateGroup,
       });
 
       if (booking.status === 'requested') {
@@ -158,17 +168,35 @@ export default function OfferingPage() {
         <aside className="booking-card">
           <h3>₹{Number(item.price).toLocaleString('en-IN')} <span>/ {item.pricing_unit.replace('_',' ')}</span></h3>
           <label className="booking-guest-field">
-            <small>Date & time</small>
-            <input type="datetime-local" value={scheduledAt} onChange={(e)=>setScheduledAt(e.target.value)}/>
+            <small>Available time</small>
+            <select value={slotId} onChange={(e)=>setSlotId(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">Select a time</option>
+              {slots.map((slot)=>(
+                <option value={slot.id} key={slot.id}>
+                  {new Date(slot.starts_at).toLocaleString('en-IN')} · {slot.capacity} places
+                  {slot.price_override ? ' · ₹' + Number(slot.price_override).toLocaleString('en-IN') : ''}
+                </option>
+              ))}
+            </select>
           </label>
+          {slots.find((slot)=>slot.id === Number(slotId))?.is_private_available && (
+            <label className="toggle-filter">
+              <input type="checkbox" checked={privateGroup} onChange={(e)=>setPrivateGroup(e.target.checked)}/>
+              Book as a private group
+            </label>
+          )}
           <label className="booking-guest-field">
             <small>Guests</small>
             <select value={guests} onChange={(e)=>setGuests(Number(e.target.value))}>
               {Array.from({ length:item.capacity },(_,i)=><option value={i+1} key={i+1}>{i+1}</option>)}
             </select>
           </label>
+          {slots.length === 0 && <div className="auth-error">The host has not published any future availability yet.</div>}
+          {privateGroup && slots.find((slot)=>slot.id === Number(slotId))?.private_group_price && (
+            <div className="auth-success">Private group price: ₹{Number(slots.find((slot)=>slot.id === Number(slotId))?.private_group_price).toLocaleString('en-IN')}</div>
+          )}
           {message && <div className={message.toLowerCase().includes('confirmed') ? 'auth-success' : 'auth-error'}>{message}</div>}
-          <button className="primary" disabled={busy} onClick={()=>void book()}>
+          <button className="primary" disabled={busy || slots.length === 0} onClick={()=>void book()}>
             {busy ? 'Processing…' : item.instant_book ? 'Book now' : 'Request'}
           </button>
         </aside>
