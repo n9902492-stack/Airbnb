@@ -358,6 +358,7 @@ export const ownerManagementApi = {
       property_id: number;
       property_title: string;
       guest_id: number;
+      guest_name: string;
       check_in: string;
       check_out: string;
       guest_count: number;
