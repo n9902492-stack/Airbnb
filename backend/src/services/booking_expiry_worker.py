@@ -9,6 +9,7 @@ async def booking_expiry_loop() -> None:
         try:
             async with AsyncSessionLocal() as db:
                 await BookingLifecycleService.expire_unpaid(db)
+                await BookingLifecycleService.complete_finished_stays(db)
         except Exception:
             pass
 
