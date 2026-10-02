@@ -10,6 +10,9 @@ import UserDashboard from './pages/UserDashboard';
 import CheckoutPage from './pages/CheckoutPage';
 import EditPropertyPage from './pages/EditPropertyPage';
 import BookingMessagesPage from './pages/BookingMessagesPage';
+import OfferingPage from './pages/OfferingPage';
+import HostProfilePage from './pages/HostProfilePage';
+import AddOfferingPage from './pages/AddOfferingPage';
 
 export default function App() {
   return (
@@ -17,6 +20,8 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/stays/:id" element={<PropertyPage />} />
+      <Route path="/offerings/:id" element={<OfferingPage />} />
+      <Route path="/hosts/:id" element={<HostProfilePage />} />
       <Route
         path="/messages/:bookingId"
         element={
@@ -58,6 +63,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={['owner', 'super_admin']}>
             <EditPropertyPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/owner/offerings/new"
+        element={
+          <ProtectedRoute roles={['owner', 'super_admin']}>
+            <AddOfferingPage />
           </ProtectedRoute>
         }
       />
