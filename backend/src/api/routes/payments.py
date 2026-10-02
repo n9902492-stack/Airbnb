@@ -17,6 +17,7 @@ from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.payment_service import PaymentService
 from src.services.payout_automation_service import PayoutAutomationService
 from src.services.razorpay_service import RazorpayService
+from src.services.tax_service import TaxService
 
 
 router = APIRouter()
@@ -39,13 +40,17 @@ async def checkout_preview(
         select(TransferRequest).where(TransferRequest.booking_id == booking.id)
     )
     transfer_fee = Decimal(str(transfer.estimated_fare)) if transfer else Decimal("0")
+    taxable_amount = Decimal(booking.total_amount) + transfer_fee
+    gst_rate, gst_amount = TaxService.calculate(taxable_amount)
 
     return {
         "booking_id": booking.id,
         "stay_subtotal": booking.subtotal,
         "service_fee": booking.service_fee,
         "transfer_fee": transfer_fee,
-        "grand_total": booking.total_amount + transfer_fee,
+        "gst_rate": gst_rate,
+        "gst_amount": gst_amount,
+        "grand_total": taxable_amount + gst_amount,
         "currency": "INR",
     }
 
