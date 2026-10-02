@@ -175,6 +175,9 @@ export default function CheckoutPage() {
               <div><span>Stay subtotal</span><strong>₹{Number(preview.stay_subtotal).toLocaleString('en-IN')}</strong></div>
               <div><span>Service fee</span><strong>₹{Number(preview.service_fee).toLocaleString('en-IN')}</strong></div>
               <div><span>Optional transfer</span><strong>₹{Number(preview.transfer_fee).toLocaleString('en-IN')}</strong></div>
+              {Number(preview.gst_amount) > 0 && (
+                <div><span>GST ({Number(preview.gst_rate)}%)</span><strong>₹{Number(preview.gst_amount).toLocaleString('en-IN')}</strong></div>
+              )}
               <hr/>
               <div className="checkout-total">
                 <span>Total</span>
