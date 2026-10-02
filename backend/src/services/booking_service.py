@@ -9,6 +9,7 @@ from src.models.booking import Booking
 from src.models.property import Property
 from src.schemas.booking import BookingCreate
 from src.services.availability_service import AvailabilityService
+from src.services.pricing_service import PricingService
 
 
 class BookingService:
@@ -37,9 +38,14 @@ class BookingService:
         if not available:
             raise ValueError("Selected dates are no longer available")
 
-        nights = (payload.check_out - payload.check_in).days
-        subtotal = property_obj.price_per_night * nights + property_obj.cleaning_fee
-        service_fee = subtotal * cls.SERVICE_FEE_RATE
+        nightly_total, _ = await PricingService.calculate_stay(
+            db,
+            property_obj,
+            payload.check_in,
+            payload.check_out,
+        )
+        subtotal = nightly_total + property_obj.cleaning_fee
+        service_fee = (subtotal * cls.SERVICE_FEE_RATE).quantize(Decimal("0.01"))
         total_amount = subtotal + service_fee
 
         booking = Booking(
