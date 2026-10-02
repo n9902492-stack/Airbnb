@@ -8,6 +8,7 @@ from src.db.session import get_db
 from src.models.booking import Booking
 from src.models.message import BookingMessage
 from src.models.property import Property
+from src.services.cohost_service import CoHostService
 from src.models.user import User
 from src.services.notification_service import NotificationService
 
@@ -32,8 +33,10 @@ async def _authorized_booking(
         return booking
 
     property_obj = await db.get(Property, booking.property_id)
-    if property_obj and property_obj.owner_id == user.id:
-        return booking
+    if property_obj:
+        permission = await CoHostService.permission_for(db, property_obj, user)
+        if permission in {"messages", "full"}:
+            return booking
 
     raise HTTPException(status_code=403, detail="You cannot access this conversation")
 
