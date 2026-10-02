@@ -26,8 +26,11 @@ class PayoutService:
         if not property_obj:
             raise ValueError("Property not found for payout")
 
+        # Owner payout is based on accommodation revenue, not the guest service fee
+        # or optional transfer amount.
+        owner_gross = Decimal(booking.subtotal)
         commission = (
-            paid_amount
+            owner_gross
             * Decimal(str(settings.platform_commission_percent))
             / Decimal("100")
         ).quantize(Decimal("0.01"))
@@ -35,9 +38,9 @@ class PayoutService:
         payout = OwnerPayout(
             booking_id=booking.id,
             owner_id=property_obj.owner_id,
-            gross_amount=paid_amount,
+            gross_amount=owner_gross,
             platform_commission=commission,
-            owner_amount=(paid_amount - commission).quantize(Decimal("0.01")),
+            owner_amount=(owner_gross - commission).quantize(Decimal("0.01")),
             status=PayoutStatus.PENDING,
         )
         db.add(payout)
