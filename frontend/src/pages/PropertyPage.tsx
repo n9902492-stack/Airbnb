@@ -6,7 +6,7 @@ import { authStore } from '../lib/auth';
 import { reviewApi, type ReviewableBooking } from '../lib/api';
 import TransferOption from '../components/TransferOption';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
-import { bookingApi } from '../lib/api';
+import { bookingApi, transferApi } from '../lib/api';
 
 export default function PropertyPage() {
   const { id } = useParams();
@@ -55,6 +55,28 @@ export default function PropertyPage() {
         check_out: checkOut,
         guest_count: guestCount,
       });
+
+      const rawTransfer = localStorage.getItem('nestora_transfer_selection');
+      if (rawTransfer) {
+        try {
+          const transfer = JSON.parse(rawTransfer);
+          if (transfer.propertyId === p.id) {
+            await transferApi.createForBooking({
+              booking_id: booking.id,
+              property_id: p.id,
+              direction: transfer.direction,
+              place_type: transfer.place_type,
+              place_name: transfer.place_name,
+              latitude: transfer.latitude,
+              longitude: transfer.longitude,
+            });
+            localStorage.removeItem('nestora_transfer_selection');
+          }
+        } catch {
+          localStorage.removeItem('nestora_transfer_selection');
+        }
+      }
+
       navigate('/checkout/' + booking.id);
     } catch (err) {
       setBookingMessage(err instanceof Error ? err.message : 'Unable to reserve these dates');
