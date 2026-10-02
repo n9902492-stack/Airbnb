@@ -923,7 +923,7 @@ export const offeringApi = {
       headers: authHeaders(),
     }),
 
-  book: (id: number, payload: { scheduled_at: string; guest_count: number }) =>
+  book: (id: number, payload: { slot_id?: number; scheduled_at?: string; guest_count: number; private_group?: boolean }) =>
     request<{
       id: number;
       status: string;
