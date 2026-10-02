@@ -4,9 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import require_roles
 from src.db.session import get_db
+from src.models.availability_block import AvailabilityBlock
 from src.models.booking import Booking
 from src.models.property import Property
 from src.models.user import User, UserRole
+from src.schemas.availability import AvailabilityBlockCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from src.services.image_service import ImageService
 from src.services.property_service import PropertyService
@@ -26,6 +28,37 @@ async def upload_property_image(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"url": url}
+
+
+@router.post("/properties/{property_id}/availability-blocks")
+async def create_availability_block(
+    property_id: int,
+    payload: AvailabilityBlockCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    property_obj = await db.get(Property, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if current_user.role != UserRole.SUPER_ADMIN and property_obj.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your property")
+
+    block = AvailabilityBlock(
+        property_id=property_id,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        reason=payload.reason,
+    )
+    db.add(block)
+    await db.commit()
+    await db.refresh(block)
+    return {
+        "id": block.id,
+        "property_id": block.property_id,
+        "start_date": block.start_date,
+        "end_date": block.end_date,
+        "reason": block.reason,
+    }
 
 
 @router.get("/overview")
