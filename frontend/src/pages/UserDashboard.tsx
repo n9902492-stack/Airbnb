@@ -3,7 +3,7 @@ import { Heart, Home, LogOut, Suitcase, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { authStore } from '../lib/auth';
-import { authApi, bookingApi, invoiceApi, wishlistApi, type WishlistItem } from '../lib/api';
+import { authApi, bookingApi, collaborationApi, invoiceApi, offeringApi, wishlistApi, type WishlistItem } from '../lib/api';
 import NotificationsPanel from '../components/NotificationsPanel';
 
 type Trip = Awaited<ReturnType<typeof bookingApi.myTrips>>[number];
@@ -14,15 +14,21 @@ export default function UserDashboard() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [message, setMessage] = useState('');
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [offeringTrips, setOfferingTrips] = useState<Awaited<ReturnType<typeof offeringApi.mineBookings>>>([]);
+  const [specialOffers, setSpecialOffers] = useState<Awaited<ReturnType<typeof collaborationApi.specialOffers>>>([]);
 
   async function loadTrips() {
     try {
-      const [tripItems, saved] = await Promise.all([
+      const [tripItems, saved, activities, offers] = await Promise.all([
         bookingApi.myTrips(),
         wishlistApi.list(),
+        offeringApi.mineBookings(),
+        collaborationApi.specialOffers(),
       ]);
       setTrips(tripItems);
       setWishlist(saved);
+      setOfferingTrips(activities);
+      setSpecialOffers(offers);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Unable to load trips');
     }
@@ -154,6 +160,55 @@ export default function UserDashboard() {
                     {['pending', 'confirmed'].includes(trip.status) && (
                       <button className="ghost dark" onClick={() => void cancelTrip(trip.id)}>Cancel booking</button>
                     )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Services & experiences</h2><p>Your booked activities and services appear in the same itinerary.</p></div></div>
+          {offeringTrips.length === 0 ? <p>No services or experiences booked yet.</p> : (
+            <div className="trip-grid">
+              {offeringTrips.map((trip)=>(
+                <article className="trip-card" key={'offering-trip-' + trip.id}>
+                  <div className="trip-card-head">
+                    <div><strong>{trip.title}</strong><small>{trip.kind} booking #{trip.id}</small></div>
+                    <span className={'booking-status ' + trip.status}>{trip.status}</span>
+                  </div>
+                  <div className="trip-details">
+                    <span><small>When</small><strong>{new Date(trip.scheduled_at).toLocaleString('en-IN')}</strong></span>
+                    <span><small>Guests</small><strong>{trip.guest_count}</strong></span>
+                    <span><small>Total</small><strong>₹{Number(trip.total_amount).toLocaleString('en-IN')}</strong></span>
+                    <span><small>Payment</small><strong>{trip.payment_status}</strong></span>
+                  </div>
+                  <div className="trip-actions"><Link className="ghost dark" to={'/offerings/' + trip.offering_id}>View details</Link></div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Special offers</h2><p>Host offers expire automatically and become normal checkout reservations when accepted.</p></div></div>
+          {specialOffers.filter((x)=>x.status === 'pending').length === 0 ? <p>No active special offers.</p> : (
+            <div className="trip-grid">
+              {specialOffers.filter((x)=>x.status === 'pending').map((offer)=>(
+                <article className="trip-card" key={'offer-' + offer.id}>
+                  <div className="trip-card-head"><div><strong>{offer.property_title}</strong><small>Special offer</small></div><span className="booking-status pending">pending</span></div>
+                  <div className="trip-details">
+                    <span><small>Check-in</small><strong>{offer.check_in}</strong></span>
+                    <span><small>Check-out</small><strong>{offer.check_out}</strong></span>
+                    <span><small>Guests</small><strong>{offer.guest_count}</strong></span>
+                    <span><small>Offer</small><strong>₹{Number(offer.total_price).toLocaleString('en-IN')}</strong></span>
+                  </div>
+                  <div className="trip-actions">
+                    <button className="primary inline" onClick={async()=>{
+                      const result = await collaborationApi.acceptSpecialOffer(offer.id);
+                      navigate('/checkout/' + result.booking_id);
+                    }}>Accept offer</button>
                   </div>
                 </article>
               ))}
