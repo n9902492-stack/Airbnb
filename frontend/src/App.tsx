@@ -7,6 +7,8 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import PropertyPage from './pages/PropertyPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import UserDashboard from './pages/UserDashboard';
+import CheckoutPage from './pages/CheckoutPage';
+import EditPropertyPage from './pages/EditPropertyPage';
 
 export default function App() {
   return (
@@ -14,6 +16,14 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/stays/:id" element={<PropertyPage />} />
+      <Route
+        path="/checkout/:bookingId"
+        element={
+          <ProtectedRoute roles={['user']}>
+            <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/user"
@@ -29,6 +39,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={['owner', 'super_admin']}>
             <OwnerDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/owner/properties/:propertyId/edit"
+        element={
+          <ProtectedRoute roles={['owner', 'super_admin']}>
+            <EditPropertyPage />
           </ProtectedRoute>
         }
       />
