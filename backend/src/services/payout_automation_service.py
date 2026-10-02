@@ -70,15 +70,16 @@ class PayoutAutomationService:
             payout.provider_reference = transfer.get("id")
             transfer_status = transfer.get("status") or transfer.get("transfer_status")
 
-            if transfer_status == "processed":
+            settlement_status = transfer.get("settlement_status")
+            if transfer_status == "processed" and settlement_status == "settled":
                 payout.status = PayoutStatus.PAID
                 payout.paid_at = datetime.now(timezone.utc)
                 await NotificationService.create(
                     db,
                     payout.owner_id,
                     "payout_paid",
-                    "Payout sent",
-                    f"₹{payout.owner_amount} for booking #{payout.booking_id} has been transferred through Razorpay Route.",
+                    "Payout settled",
+                    f"₹{payout.owner_amount} for booking #{payout.booking_id} has been settled through Razorpay Route.",
                 )
             else:
                 payout.status = PayoutStatus.PROCESSING
@@ -145,16 +146,19 @@ class PayoutAutomationService:
             return False
 
         status = transfer.get("status") or transfer.get("transfer_status")
-        if status == "processed":
+        settlement_status = transfer.get("settlement_status")
+        if status == "processed" and settlement_status == "settled":
             payout.status = PayoutStatus.PAID
             payout.paid_at = payout.paid_at or datetime.now(timezone.utc)
             await NotificationService.create(
                 db,
                 payout.owner_id,
                 "payout_paid",
-                "Payout sent",
-                f"₹{payout.owner_amount} for booking #{payout.booking_id} has been transferred through Razorpay Route.",
+                "Payout settled",
+                f"₹{payout.owner_amount} for booking #{payout.booking_id} has been settled through Razorpay Route.",
             )
+        elif status == "processed":
+            payout.status = PayoutStatus.PROCESSING
         elif status in {"failed", "reversed", "partially_reversed"}:
             payout.status = PayoutStatus.FAILED
             await NotificationService.create(
