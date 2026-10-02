@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/nestora"
     frontend_url: str = "http://localhost:5173"
+    allowed_hosts: str = "localhost,127.0.0.1"
 
     secret_key: str = "change-this-in-your-local-env"
     access_token_expire_minutes: int = 60
