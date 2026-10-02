@@ -12,6 +12,7 @@ from src.models.payout_account import OwnerPayoutAccount
 from src.models.pricing_rule import PricingRule
 from src.models.property import Property
 from src.models.user import User, UserRole
+from src.models.cohost import PropertyCoHost
 from src.schemas.availability import AvailabilityBlockCreate
 from src.schemas.pricing import PricingRuleCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
@@ -148,11 +149,18 @@ async def owner_reservations(
     current_user: User = Depends(owner_required),
 ):
     await BookingLifecycleService.expire_unpaid(db)
+    cohost_property_ids = select(PropertyCoHost.property_id).where(
+        PropertyCoHost.user_id == current_user.id,
+        PropertyCoHost.permission.in_(["messages", "full"]),
+    )
     result = await db.execute(
         select(Booking, Property, User)
         .join(Property, Booking.property_id == Property.id)
         .join(User, Booking.guest_id == User.id)
-        .where(Property.owner_id == current_user.id)
+        .where(
+            (Property.owner_id == current_user.id)
+            | (Property.id.in_(cohost_property_ids))
+        )
         .order_by(Booking.check_in.asc())
     )
     return [
@@ -358,9 +366,15 @@ async def list_owner_properties(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(owner_required),
 ):
+    cohost_ids = select(PropertyCoHost.property_id).where(
+        PropertyCoHost.user_id == current_user.id
+    )
     result = await db.execute(
         select(Property)
-        .where(Property.owner_id == current_user.id)
+        .where(
+            (Property.owner_id == current_user.id)
+            | (Property.id.in_(cohost_ids))
+        )
         .order_by(Property.created_at.desc())
     )
     return list(result.scalars().all())
