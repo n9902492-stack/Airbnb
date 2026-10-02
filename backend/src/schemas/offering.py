@@ -25,5 +25,7 @@ class OfferingCreate(BaseModel):
 
 
 class OfferingBookingCreate(BaseModel):
-    scheduled_at: datetime
+    slot_id: int | None = None
+    scheduled_at: datetime | None = None
     guest_count: int = Field(ge=1)
+    private_group: bool = False
