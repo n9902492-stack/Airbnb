@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Building2, Flag, LayoutDashboard, Shield, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { adminApi, adminBookingApi, financeApi, type AdminBooking, type AdminFinance, type PendingProperty } from '../lib/api';
+import { adminApi, adminBookingApi, financeApi, promotionApi, trustApi, type AdminBooking, type AdminFinance, type PendingProperty } from '../lib/api';
 
 export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState({ users: 0, owners: 0, listings: 0, bookings: 0 });
@@ -13,15 +13,24 @@ export default function SuperAdminDashboard() {
   const [linkedAccounts, setLinkedAccounts] = useState<Record<number,string>>({});
   const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof adminApi.auditLogs>>>([]);
   const [pendingOfferings, setPendingOfferings] = useState<Awaited<ReturnType<typeof adminApi.pendingOfferings>>>([]);
+  const [pendingIdentity, setPendingIdentity] = useState<Awaited<ReturnType<typeof trustApi.pendingIdentity>>>([]);
+  const [supportCases, setSupportCases] = useState<Awaited<ReturnType<typeof trustApi.adminSupport>>>([]);
+  const [promotions, setPromotions] = useState<Awaited<ReturnType<typeof promotionApi.list>>>([]);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoValue, setPromoValue] = useState(10);
+  const [promoType, setPromoType] = useState<'percent'|'fixed'>('percent');
 
   async function refresh() {
-    const [summary, items, bookingItems, financeData, auditItems, offeringItems] = await Promise.all([
+    const [summary, items, bookingItems, financeData, auditItems, offeringItems, identityItems, supportItems, promoItems] = await Promise.all([
       adminApi.overview(),
       adminApi.pendingProperties(),
       adminBookingApi.list(),
       financeApi.admin(),
       adminApi.auditLogs(),
       adminApi.pendingOfferings(),
+      trustApi.pendingIdentity(),
+      trustApi.adminSupport(),
+      promotionApi.list(),
     ]);
     setOverview(summary);
     setPending(items);
@@ -29,6 +38,9 @@ export default function SuperAdminDashboard() {
     setFinance(financeData);
     setAuditLogs(auditItems);
     setPendingOfferings(offeringItems);
+    setPendingIdentity(identityItems);
+    setSupportCases(supportItems);
+    setPromotions(promoItems);
   }
 
   useEffect(() => {
@@ -155,6 +167,74 @@ export default function SuperAdminDashboard() {
               })}
             </div>
           )}
+        </div>
+
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Identity verification</h2><p>Review KYC/provider references without storing raw identity documents in Nestora.</p></div></div>
+          {pendingIdentity.length === 0 ? <p>No identity submissions awaiting review.</p> : (
+            <div className="support-list">
+              {pendingIdentity.map((item)=>(
+                <article key={'identity-' + item.id}>
+                  <div><strong>{item.name}</strong><small>{item.email} · {item.document_type ?? 'document'} · {item.provider}</small>{item.provider_reference && <code>{item.provider_reference}</code>}</div>
+                  <div className="moderation-actions">
+                    <button className="primary inline" onClick={async()=>{await trustApi.approveIdentity(item.id);setMessage('Identity approved.');await refresh();}}>Verify</button>
+                    <button className="ghost dark" onClick={async()=>{const reason=window.prompt('Reason for rejection?')?.trim();if(reason){await trustApi.rejectIdentity(item.id,reason);await refresh();}}}>Reject</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Support & safety queue</h2><p>Reservation, refund, damage and urgent safety cases in one queue.</p></div></div>
+          {supportCases.length === 0 ? <p>No support cases.</p> : (
+            <div className="support-list">
+              {supportCases.map((item)=>(
+                <article key={'support-' + item.id}>
+                  <div><strong>#{item.id} · {item.subject}</strong><small>{item.reporter_name} · {item.case_type} · {item.priority}</small>{item.booking_id && <span>Booking #{item.booking_id}</span>}</div>
+                  <div className="moderation-actions">
+                    <button className="ghost dark" onClick={async()=>{await trustApi.updateSupport(item.id,'in_progress');await refresh();}}>Start</button>
+                    <button className="primary inline" onClick={async()=>{const resolution=window.prompt('Resolution note') ?? '';await trustApi.updateSupport(item.id,'resolved',resolution);await refresh();}}>Resolve</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Promotions</h2><p>Create platform-funded checkout discounts with usage limits and server-side validation.</p></div></div>
+          <div className="collaboration-create">
+            <input value={promoCode} onChange={(e)=>setPromoCode(e.target.value.toUpperCase())} placeholder="NESTORA10"/>
+            <select value={promoType} onChange={(e)=>setPromoType(e.target.value as typeof promoType)}>
+              <option value="percent">Percent</option>
+              <option value="fixed">Fixed ₹</option>
+            </select>
+            <input type="number" min="1" value={promoValue} onChange={(e)=>setPromoValue(Number(e.target.value))}/>
+            <button className="primary inline" onClick={async()=>{
+              if(!promoCode.trim()) return;
+              await promotionApi.create({
+                code:promoCode.trim(),
+                discount_type:promoType,
+                discount_value:promoValue,
+                minimum_spend:0,
+              });
+              setPromoCode('');
+              setPromotions(await promotionApi.list());
+            }}>Create promotion</button>
+          </div>
+          <div className="promotion-grid">
+            {promotions.map((promo)=>(
+              <article key={'promo-' + promo.id}>
+                <strong>{promo.code}</strong>
+                <span>{promo.discount_type === 'percent' ? promo.discount_value + '%' : '₹' + Number(promo.discount_value).toLocaleString('en-IN')} off</span>
+                <small>{promo.used_count}{promo.max_uses ? ' / ' + promo.max_uses : ''} uses</small>
+                <button className="ghost dark" onClick={async()=>{await promotionApi.toggle(promo.id);setPromotions(await promotionApi.list());}}>{promo.active ? 'Disable' : 'Enable'}</button>
+              </article>
+            ))}
+          </div>
         </div>
 
         <div className="panel">
