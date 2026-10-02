@@ -10,6 +10,7 @@ from src.models.property import Property
 from src.models.user import User
 from src.services.email_service import EmailService
 from src.services.invoice_service import InvoiceService
+from src.services.job_queue import JobQueue
 from src.services.notification_service import NotificationService
 from src.services.payout_service import PayoutService
 from src.services.razorpay_service import RazorpayService
@@ -107,15 +108,21 @@ class PaymentService:
             )
 
         if guest and property_obj:
-            try:
-                await EmailService.send_booking_confirmation(
-                    guest.email,
-                    property_obj.title,
-                    str(booking.check_in),
-                    str(booking.check_out),
-                    f"{payment.amount:.2f}",
-                )
-            except Exception:
-                pass
+            email_payload = {
+                "email": guest.email,
+                "property_title": property_obj.title,
+                "check_in": str(booking.check_in),
+                "check_out": str(booking.check_out),
+                "amount": f"{payment.amount:.2f}",
+            }
+            queued = await JobQueue.enqueue(
+                "booking_confirmation_email",
+                email_payload,
+            )
+            if not queued:
+                try:
+                    await EmailService.send_booking_confirmation(**email_payload)
+                except Exception:
+                    pass
 
         return payment
