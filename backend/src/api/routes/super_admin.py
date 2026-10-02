@@ -6,9 +6,11 @@ from src.api.deps import require_roles
 from src.db.session import get_db
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
+from src.models.payout import OwnerPayout, PayoutStatus
 from src.models.property import Property, PropertyStatus
 from src.models.user import User, UserRole
 from src.services.cancellation_service import CancellationService
+from src.services.payout_service import PayoutService
 
 
 router = APIRouter()
@@ -62,6 +64,57 @@ async def admin_bookings(
         }
         for booking, property_obj, guest, payment in result.all()
     ]
+
+
+@router.get("/finance")
+async def finance_overview(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    payments = list((await db.execute(select(Payment))).scalars().all())
+    payouts = list((await db.execute(select(OwnerPayout))).scalars().all())
+
+    collected = sum(float(p.amount) for p in payments if p.status in {PaymentStatus.PAID, PaymentStatus.REFUNDED})
+    refunds = sum(float(p.refund_amount or 0) for p in payments)
+    commission = sum(float(p.platform_commission) for p in payouts)
+    owner_payable = sum(float(p.owner_amount) for p in payouts if p.status in {PayoutStatus.PENDING, PayoutStatus.READY, PayoutStatus.PROCESSING})
+    owner_paid = sum(float(p.owner_amount) for p in payouts if p.status == PayoutStatus.PAID)
+
+    return {
+        "collected": collected,
+        "refunds": refunds,
+        "platform_commission": commission,
+        "owner_payable": owner_payable,
+        "owner_paid": owner_paid,
+        "payouts": [
+            {
+                "id": p.id,
+                "booking_id": p.booking_id,
+                "owner_id": p.owner_id,
+                "owner_amount": float(p.owner_amount),
+                "platform_commission": float(p.platform_commission),
+                "status": p.status.value,
+            }
+            for p in payouts
+        ],
+    }
+
+
+@router.post("/payouts/{payout_id}/mark-paid")
+async def mark_payout_paid(
+    payout_id: int,
+    provider_reference: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    payout = await db.get(OwnerPayout, payout_id)
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    if payout.status not in {PayoutStatus.READY, PayoutStatus.PROCESSING}:
+        raise HTTPException(status_code=409, detail="Payout is not ready")
+
+    payout = await PayoutService.mark_paid(db, payout, provider_reference)
+    return {"id": payout.id, "status": payout.status.value}
 
 
 @router.get("/properties/pending")
