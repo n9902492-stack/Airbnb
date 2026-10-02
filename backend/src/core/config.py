@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     smtp_from_email: str = "no-reply@nestora.local"
     smtp_use_tls: bool = True
 
+    mapbox_access_token: str = ""
+
+    transfer_base_fare: float = 120.0
+    transfer_per_km_rate: float = 22.0
+    transfer_minimum_fare: float = 180.0
+    transfer_airport_surcharge: float = 150.0
+    transfer_railway_surcharge: float = 60.0
+    transfer_bus_surcharge: float = 40.0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
