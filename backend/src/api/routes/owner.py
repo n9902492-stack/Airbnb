@@ -8,10 +8,12 @@ from src.models.availability_block import AvailabilityBlock
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
 from src.models.payout import OwnerPayout
+from src.models.payout_account import OwnerPayoutAccount
 from src.models.pricing_rule import PricingRule
 from src.models.property import Property
 from src.models.user import User, UserRole
 from src.schemas.availability import AvailabilityBlockCreate
+from src.schemas.payout import PayoutAccountUpdate
 from src.schemas.pricing import PricingRuleCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from src.services.image_service import ImageService
@@ -171,6 +173,60 @@ async def delete_pricing_rule(
         await db.delete(rule)
         await db.commit()
     return {"ok": True}
+
+
+@router.get("/payout-account")
+async def get_payout_account(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    account = await db.scalar(
+        select(OwnerPayoutAccount).where(
+            OwnerPayoutAccount.owner_id == current_user.id
+        )
+    )
+    if not account:
+        return {"configured": False, "provider": "razorpay_route"}
+
+    return {
+        "configured": True,
+        "provider": account.provider,
+        "linked_account_id": account.linked_account_id,
+        "status": account.status,
+    }
+
+
+@router.put("/payout-account")
+async def set_payout_account(
+    payload: PayoutAccountUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    account = await db.scalar(
+        select(OwnerPayoutAccount).where(
+            OwnerPayoutAccount.owner_id == current_user.id
+        )
+    )
+
+    if account:
+        account.linked_account_id = payload.linked_account_id
+        account.status = "active"
+    else:
+        account = OwnerPayoutAccount(
+            owner_id=current_user.id,
+            linked_account_id=payload.linked_account_id,
+            status="active",
+        )
+        db.add(account)
+
+    await db.commit()
+    await db.refresh(account)
+    return {
+        "configured": True,
+        "provider": account.provider,
+        "linked_account_id": account.linked_account_id,
+        "status": account.status,
+    }
 
 
 @router.get("/payouts")
