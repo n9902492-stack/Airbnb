@@ -54,9 +54,32 @@ export default function AddPropertyPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(initial);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const update = (key: keyof FormState, value: string | number) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  async function uploadImages(files: FileList | null) {
+    if (!files?.length) return;
+    setUploading(true);
+    setError('');
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        const result = await ownerApi.uploadImage(file);
+        uploaded.push(result.url);
+      }
+      const current = form.image_urls
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      update('image_urls', [...current, ...uploaded].join(','));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to upload images');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -140,7 +163,20 @@ export default function AddPropertyPage() {
           {step === 4 && <>
             <span className="eyebrow">Photos & submit</span>
             <h1>Add clear photos before moderation.</h1>
-            <label>Image URLs <small>Comma separated for now; direct upload comes next.</small><textarea value={form.image_urls} onChange={(e)=>update('image_urls',e.target.value)} placeholder="https://... , https://..." /></label>
+            <label>
+              Upload property photos
+              <small>Add clear exterior, living room, bedroom, bathroom and kitchen photos. JPEG, PNG or WebP, up to 8 MB each.</small>
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e)=>void uploadImages(e.target.files)} />
+            </label>
+            {uploading && <div className="auth-success">Uploading photos…</div>}
+            <div className="upload-preview-grid">
+              {form.image_urls.split(',').map((x)=>x.trim()).filter(Boolean).map((url,index)=>(
+                <figure key={url + index}>
+                  <img src={url.startsWith('/uploads') ? 'http://localhost:8000' + url : url} alt={'Property upload ' + (index + 1)} />
+                  <figcaption>{['Exterior','Living room','Bedroom','Bathroom','Kitchen'][index] ?? 'Extra photo'}</figcaption>
+                </figure>
+              ))}
+            </div>
             <div className="review-box">
               <strong>{form.title || 'Untitled property'}</strong>
               <p>{form.city || 'City'}, {form.state || 'State'} · {form.guests} guests · ₹{form.price_per_night}/night</p>
