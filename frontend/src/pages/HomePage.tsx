@@ -9,7 +9,7 @@ export default function HomePage() {
     <header className="topbar">
       <Link to="/" className="brand">Nestora</Link>
       <nav className="navlinks"><a href="#stays">Stays</a><a href="#why">Why Nestora</a><Link to="/owner">List your home</Link></nav>
-      <div className="header-actions"><button className="ghost">₹ INR</button><button className="profile-btn"><Menu size={18}/><UserRound size={20}/></button></div>
+      <div className="header-actions"><button className="ghost">₹ INR</button><Link to="/auth" className="profile-btn"><Menu size={18}/><UserRound size={20}/></Link></div>
     </header>
 
     <section className="hero">
