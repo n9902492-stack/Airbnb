@@ -3,7 +3,7 @@ import { Heart, Home, LogOut, Suitcase, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { authStore } from '../lib/auth';
-import { bookingApi, wishlistApi, type WishlistItem } from '../lib/api';
+import { authApi, bookingApi, invoiceApi, wishlistApi, type WishlistItem } from '../lib/api';
 import NotificationsPanel from '../components/NotificationsPanel';
 
 type Trip = Awaited<ReturnType<typeof bookingApi.myTrips>>[number];
@@ -32,7 +32,8 @@ export default function UserDashboard() {
     void loadTrips();
   }, []);
 
-  function signOut() {
+  async function signOut() {
+    await authApi.logout().catch(() => undefined);
     authStore.clear();
     navigate('/auth');
   }
@@ -137,6 +138,16 @@ export default function UserDashboard() {
 
                   <div className="trip-actions">
                     <Link className="ghost dark" to={'/messages/' + trip.id}>Message host</Link>
+                    {trip.payment_status === 'paid' && (
+                      <button className="ghost dark" onClick={async()=>{
+                        try {
+                          const invoice = await invoiceApi.get(trip.id);
+                          setMessage('Invoice ' + invoice.invoice_number + ' · Total ₹' + Number(invoice.total_amount).toLocaleString('en-IN') + (invoice.gst_amount ? ' · GST ₹' + Number(invoice.gst_amount).toLocaleString('en-IN') : ''));
+                        } catch (err) {
+                          setMessage(err instanceof Error ? err.message : 'Invoice unavailable');
+                        }
+                      }}>View invoice</button>
+                    )}
                     {trip.status === 'pending' && (
                       <Link className="primary inline" to={'/checkout/' + trip.id}>Continue payment</Link>
                     )}
