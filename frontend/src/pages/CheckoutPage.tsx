@@ -33,7 +33,11 @@ export default function CheckoutPage() {
     try {
       const verified = await paymentApi.verifyRazorpay(paymentSession.id, response);
       setPayment(verified);
-      setMessage('Payment verified. Your reservation is confirmed.');
+      setMessage(
+        verified.status === 'refunded'
+          ? 'The booking hold expired before confirmation, so the captured payment was refunded.'
+          : 'Payment verified. Your reservation is confirmed.',
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Payment verification failed');
     } finally {
