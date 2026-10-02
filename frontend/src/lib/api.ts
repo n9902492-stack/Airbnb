@@ -158,6 +158,8 @@ export const transferApi = {
     place_name: string;
     latitude: number;
     longitude: number;
+    stay_latitude?: number;
+    stay_longitude?: number;
   }) =>
     request<TransferQuote>('/transfers/quote', {
       method: 'POST',
