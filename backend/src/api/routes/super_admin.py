@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from src.models.payout_account import OwnerPayoutAccount
 from src.models.property import Property, PropertyStatus
 from src.models.user import User, UserRole
 from src.schemas.payout import PayoutAccountUpdate
+from src.services.audit_service import AuditService
 from src.services.cancellation_service import CancellationService
 from src.services.payout_service import PayoutService
 
@@ -72,8 +73,9 @@ async def admin_bookings(
 async def set_owner_payout_account(
     owner_id: int,
     payload: PayoutAccountUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(super_admin_required),
+    current_admin: User = Depends(super_admin_required),
 ):
     owner = await db.get(User, owner_id)
     if not owner or owner.role != UserRole.OWNER:
@@ -97,6 +99,16 @@ async def set_owner_payout_account(
 
     await db.commit()
     await db.refresh(account)
+    await AuditService.record(
+        db,
+        "owner_payout_account.updated",
+        actor_user_id=current_admin.id,
+        entity_type="owner",
+        entity_id=owner_id,
+        request_id=request.headers.get("x-request-id"),
+        ip_address=request.client.host if request.client else None,
+        metadata={"provider": account.provider},
+    )
     return {
         "owner_id": owner_id,
         "provider": account.provider,
@@ -142,9 +154,10 @@ async def finance_overview(
 @router.post("/payouts/{payout_id}/mark-paid")
 async def mark_payout_paid(
     payout_id: int,
+    request: Request,
     provider_reference: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(super_admin_required),
+    current_admin: User = Depends(super_admin_required),
 ):
     payout = await db.get(OwnerPayout, payout_id)
     if not payout:
@@ -153,6 +166,16 @@ async def mark_payout_paid(
         raise HTTPException(status_code=409, detail="Payout is not ready")
 
     payout = await PayoutService.mark_paid(db, payout, provider_reference)
+    await AuditService.record(
+        db,
+        "payout.marked_paid",
+        actor_user_id=current_admin.id,
+        entity_type="owner_payout",
+        entity_id=payout.id,
+        request_id=request.headers.get("x-request-id"),
+        ip_address=request.client.host if request.client else None,
+        metadata={"provider_reference": provider_reference},
+    )
     return {"id": payout.id, "status": payout.status.value}
 
 
