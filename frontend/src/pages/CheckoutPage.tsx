@@ -20,6 +20,7 @@ export default function CheckoutPage() {
   const [session, setSession] = useState<PaymentSession | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -45,12 +46,32 @@ export default function CheckoutPage() {
     }
   }
 
+  async function applyPromo() {
+    if (!promoCode.trim()) {
+      setMessage('Enter a promotion code first.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      const next = await paymentApi.preview(id, promoCode.trim());
+      setPreview(next);
+      setMessage(next.discount_amount > 0
+        ? 'Promotion applied: you save ₹' + Number(next.discount_amount).toLocaleString('en-IN') + '.'
+        : 'Promotion code did not change this checkout.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to apply promotion');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function beginPayment() {
     setBusy(true);
     setMessage('');
 
     try {
-      const created = await paymentApi.create(id);
+      const created = await paymentApi.create(id, promoCode.trim() || undefined);
       setSession(created);
 
       if (created.provider === 'manual_demo') {
@@ -119,6 +140,23 @@ export default function CheckoutPage() {
           <h1>Review and confirm your reservation</h1>
           <p>Your selected stay and optional transfer are combined here before payment.</p>
 
+          <div className="promo-box">
+            <label>
+              <small>Promotion code</small>
+              <div className="promo-entry">
+                <input
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="NESTORA20"
+                  maxLength={40}
+                />
+                <button className="ghost dark" type="button" disabled={busy} onClick={() => void applyPromo()}>
+                  Apply
+                </button>
+              </div>
+            </label>
+          </div>
+
           <div className="checkout-trust">
             <div><ShieldCheck size={19}/><span>Server-calculated pricing</span></div>
             <div><CheckCircle2 size={19}/><span>Payment signature verified on the backend</span></div>
@@ -175,6 +213,9 @@ export default function CheckoutPage() {
               <div><span>Stay subtotal</span><strong>₹{Number(preview.stay_subtotal).toLocaleString('en-IN')}</strong></div>
               <div><span>Service fee</span><strong>₹{Number(preview.service_fee).toLocaleString('en-IN')}</strong></div>
               <div><span>Optional transfer</span><strong>₹{Number(preview.transfer_fee).toLocaleString('en-IN')}</strong></div>
+              {Number(preview.discount_amount) > 0 && (
+                <div className="discount-line"><span>Promotion {preview.promo_code ? '(' + preview.promo_code + ')' : ''}</span><strong>-₹{Number(preview.discount_amount).toLocaleString('en-IN')}</strong></div>
+              )}
               {Number(preview.gst_amount) > 0 && (
                 <div><span>GST ({Number(preview.gst_rate)}%)</span><strong>₹{Number(preview.gst_amount).toLocaleString('en-IN')}</strong></div>
               )}
