@@ -32,6 +32,8 @@ class Booking(Base):
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     discount_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     promo_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    credit_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    credit_refunded_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
 
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus, name="booking_status"),
