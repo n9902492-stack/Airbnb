@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Home, Plus, Star, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { authStore } from '../lib/auth';
-import { ownerApi, ownerManagementApi, type OwnerProperty } from '../lib/api';
+import { earningsApi, ownerApi, ownerManagementApi, type OwnerEarnings, type OwnerProperty } from '../lib/api';
+import NotificationsPanel from '../components/NotificationsPanel';
 
 const examples: OwnerProperty[] = [
   {
@@ -30,11 +31,13 @@ export default function OwnerDashboard() {
   const [listings, setListings] = useState<OwnerProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState<Awaited<ReturnType<typeof ownerManagementApi.reservations>>>([]);
+  const [earnings, setEarnings] = useState<OwnerEarnings>({ gross: 0, refunded: 0, net: 0, transactions: [] });
 
   useEffect(() => {
     Promise.all([
       ownerApi.listProperties().then(setListings).catch(() => setListings([])),
       ownerManagementApi.reservations().then(setReservations).catch(() => setReservations([])),
+      earningsApi.owner().then(setEarnings).catch(() => undefined),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -156,7 +159,7 @@ export default function OwnerDashboard() {
                       <td>{reservation.check_in} → {reservation.check_out}</td>
                       <td>{reservation.guest_count}</td>
                       <td><span className={'booking-status ' + reservation.status}>{reservation.status}</span></td>
-                      <td>₹{Number(reservation.total_amount).toLocaleString('en-IN')}</td>
+                      <td>₹{Number(reservation.total_amount).toLocaleString('en-IN')}<br/><Link className="table-link" to={'/messages/' + reservation.booking_id}>Message guest</Link></td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,6 +167,17 @@ export default function OwnerDashboard() {
             </div>
           )}
         </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Earnings</h2><p>Paid booking revenue minus recorded refunds.</p></div></div>
+          <div className="earnings-summary">
+            <div><small>Gross</small><strong>₹{Number(earnings.gross).toLocaleString('en-IN')}</strong></div>
+            <div><small>Refunded</small><strong>₹{Number(earnings.refunded).toLocaleString('en-IN')}</strong></div>
+            <div><small>Net</small><strong>₹{Number(earnings.net).toLocaleString('en-IN')}</strong></div>
+          </div>
+        </div>
+
+        <NotificationsPanel />
       </section>
     </main>
   );
