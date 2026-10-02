@@ -55,6 +55,7 @@ class Property(Base):
     check_out_time: Mapped[str] = mapped_column(String(20), default="11:00", nullable=False)
     booking_mode: Mapped[str] = mapped_column(String(30), default="instant", index=True, nullable=False)
     guest_favorite: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    cancellation_policy: Mapped[str] = mapped_column(String(30), default="moderate", nullable=False)
 
     status: Mapped[PropertyStatus] = mapped_column(
         Enum(PropertyStatus, name="property_status"),
