@@ -12,6 +12,7 @@ from src.schemas.availability import AvailabilityBlockCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from src.services.image_service import ImageService
 from src.services.property_service import PropertyService
+from src.services.booking_lifecycle_service import BookingLifecycleService
 
 
 router = APIRouter()
@@ -59,6 +60,34 @@ async def create_availability_block(
         "end_date": block.end_date,
         "reason": block.reason,
     }
+
+
+@router.get("/reservations")
+async def owner_reservations(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    await BookingLifecycleService.expire_unpaid(db)
+    result = await db.execute(
+        select(Booking, Property)
+        .join(Property, Booking.property_id == Property.id)
+        .where(Property.owner_id == current_user.id)
+        .order_by(Booking.check_in.asc())
+    )
+    return [
+        {
+            "booking_id": booking.id,
+            "property_id": property_obj.id,
+            "property_title": property_obj.title,
+            "guest_id": booking.guest_id,
+            "check_in": booking.check_in,
+            "check_out": booking.check_out,
+            "guest_count": booking.guest_count,
+            "total_amount": float(booking.total_amount),
+            "status": booking.status.value,
+        }
+        for booking, property_obj in result.all()
+    ]
 
 
 @router.get("/overview")
