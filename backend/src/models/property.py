@@ -43,6 +43,9 @@ class Property(Base):
 
     price_per_night: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     cleaning_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    weekend_price_per_night: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    minimum_stay_nights: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    maximum_stay_nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     amenities: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     house_rules: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
@@ -71,3 +74,4 @@ class Property(Base):
     transfer_requests = relationship("TransferRequest", back_populates="property", cascade="all, delete-orphan")
     availability_blocks = relationship("AvailabilityBlock", back_populates="property", cascade="all, delete-orphan")
     wishlist_items = relationship("WishlistItem", back_populates="property", cascade="all, delete-orphan")
+    pricing_rules = relationship("PricingRule", back_populates="property", cascade="all, delete-orphan")
