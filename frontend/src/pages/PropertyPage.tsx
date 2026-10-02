@@ -39,6 +39,9 @@ type PropertyView = {
   amenities: string[];
   highlights: string[];
   host: string;
+  hostId: number;
+  bookingMode: 'instant' | 'request';
+  guestFavorite: boolean;
   customerReviews: ReviewView[];
   latitude: number | null;
   longitude: number | null;
@@ -77,6 +80,9 @@ function normalizeLiveProperty(
       'Secure Nestora booking',
     ],
     host: 'Verified Nestora host',
+    hostId: property.owner_id,
+    bookingMode: property.booking_mode,
+    guestFavorite: property.guest_favorite,
     customerReviews: reviewSummary.reviews.map((review) => ({
       id: review.id,
       guestName: review.guest_name ?? 'Verified guest',
@@ -112,6 +118,9 @@ function normalizeDemoProperty(id: number): PropertyView | null {
     amenities: p.amenities,
     highlights: p.highlights,
     host: p.host,
+    hostId: 0,
+    bookingMode: 'instant',
+    guestFavorite: false,
     customerReviews: p.customerReviews,
     latitude: p.latitude,
     longitude: p.longitude,
@@ -230,6 +239,11 @@ export default function PropertyPage() {
         }
       }
 
+      if (booking.status === 'requested') {
+        setBookingMessage('Request sent to the host. You will be notified if it is accepted, then you can complete payment.');
+        return;
+      }
+
       navigate('/checkout/' + booking.id);
     } catch (err) {
       setBookingMessage(err instanceof Error ? err.message : 'Unable to reserve these dates');
@@ -288,11 +302,15 @@ export default function PropertyPage() {
 
       <div className="detail-heading">
         <div>
-          <span className="eyebrow">Hosted by {p.host}</span>
+          <span className="eyebrow">
+            Hosted by {p.host}
+            {p.hostId ? <> · <Link className="host-link" to={'/hosts/' + p.hostId}>View profile</Link></> : null}
+          </span>
           <h1>{p.title}</h1>
           <p><MapPin size={17}/>{p.location}</p>
         </div>
         <div className="rating">
+          {p.guestFavorite && <span className="verified-stay-badge">Guest Favorite</span>}
           <Star fill="currentColor" size={18}/>
           {p.reviews ? p.rating.toFixed(2) + ' · ' + p.reviews + ' reviews' : 'New listing'}
         </div>
@@ -448,9 +466,13 @@ export default function PropertyPage() {
 
           {bookingMessage && <div className="auth-error">{bookingMessage}</div>}
           <button className="primary" disabled={bookingBusy} onClick={() => void reserveStay()}>
-            {bookingBusy ? 'Checking…' : 'Reserve'}
+            {bookingBusy ? 'Checking…' : p.bookingMode === 'request' ? 'Request to book' : 'Reserve'}
           </button>
-          <small>You won't be charged until checkout</small>
+          <small>
+            {p.bookingMode === 'request'
+              ? 'The host must accept your request before payment opens.'
+              : 'You won’t be charged until checkout.'}
+          </small>
         </aside>
       </div>
     </main>
