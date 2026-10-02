@@ -1,32 +1,57 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ArrowLeft, ImagePlus, Save } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ImagePlus, Save, Trash2 } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { ownerApi, ownerManagementApi, type OwnerProperty } from '../lib/api';
+
+type PricingRule = Awaited<ReturnType<typeof ownerManagementApi.pricingRules>>[number];
 
 export default function EditPropertyPage() {
   const { propertyId } = useParams();
-  const navigate = useNavigate();
   const id = Number(propertyId);
 
   const [property, setProperty] = useState<OwnerProperty | null>(null);
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState(0);
+  const [weekendPrice, setWeekendPrice] = useState<number | ''>('');
+  const [minimumStay, setMinimumStay] = useState(1);
+  const [maximumStay, setMaximumStay] = useState<number | ''>('');
   const [images, setImages] = useState<string[]>([]);
   const [blockStart, setBlockStart] = useState('');
   const [blockEnd, setBlockEnd] = useState('');
+  const [rules, setRules] = useState<PricingRule[]>([]);
+  const [ruleName, setRuleName] = useState('');
+  const [ruleStart, setRuleStart] = useState('');
+  const [ruleEnd, setRuleEnd] = useState('');
+  const [ruleRate, setRuleRate] = useState(0);
+  const [ruleMinimumStay, setRuleMinimumStay] = useState<number | ''>('');
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    ownerManagementApi.getProperties().then((items) => {
+  async function load() {
+    try {
+      const [items, pricingRules] = await Promise.all([
+        ownerManagementApi.getProperties(),
+        ownerManagementApi.pricingRules(id),
+      ]);
       const found = items.find((item) => item.id === id) ?? null;
       setProperty(found);
+      setRules(pricingRules);
+
       if (found) {
         setTitle(found.title);
         setPrice(Number(found.price_per_night));
+        setWeekendPrice(found.weekend_price_per_night ? Number(found.weekend_price_per_night) : '');
+        setMinimumStay(found.minimum_stay_nights ?? 1);
+        setMaximumStay(found.maximum_stay_nights ? Number(found.maximum_stay_nights) : '');
         setImages(found.image_urls ?? []);
       }
-    }).catch((err) => setMessage(err instanceof Error ? err.message : 'Unable to load property'));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to load property');
+    }
+  }
+
+  useEffect(() => {
+    void load();
   }, [id]);
 
   async function save(event: FormEvent) {
@@ -35,9 +60,13 @@ export default function EditPropertyPage() {
       await ownerManagementApi.updateProperty(id, {
         title,
         price_per_night: price,
+        weekend_price_per_night: weekendPrice === '' ? null : weekendPrice,
+        minimum_stay_nights: minimumStay,
+        maximum_stay_nights: maximumStay === '' ? null : maximumStay,
         image_urls: images,
       });
-      setMessage('Listing updated successfully.');
+      setMessage('Listing pricing and details updated successfully.');
+      await load();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Unable to update listing');
     }
@@ -76,6 +105,37 @@ export default function EditPropertyPage() {
     }
   }
 
+  async function addPricingRule() {
+    if (!ruleName || !ruleStart || !ruleEnd || ruleRate <= 0) {
+      setMessage('Complete the seasonal pricing fields first.');
+      return;
+    }
+
+    try {
+      await ownerManagementApi.createPricingRule(id, {
+        name: ruleName,
+        start_date: ruleStart,
+        end_date: ruleEnd,
+        nightly_rate: ruleRate,
+        minimum_stay_nights: ruleMinimumStay === '' ? null : ruleMinimumStay,
+      });
+      setRuleName('');
+      setRuleStart('');
+      setRuleEnd('');
+      setRuleRate(0);
+      setRuleMinimumStay('');
+      setMessage('Seasonal pricing rule added.');
+      await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to add pricing rule');
+    }
+  }
+
+  async function removePricingRule(ruleId: number) {
+    await ownerManagementApi.deletePricingRule(id, ruleId);
+    setRules((current) => current.filter((rule) => rule.id !== ruleId));
+  }
+
   if (!property) {
     return <main className="property-wizard"><div className="wizard-top"><Link to="/owner" className="back"><ArrowLeft size={18}/>Owner dashboard</Link><span className="brand">Nestora</span></div><div className="wizard-shell"><p>{message || 'Loading property…'}</p></div></main>;
   }
@@ -89,11 +149,17 @@ export default function EditPropertyPage() {
 
       <section className="edit-property-shell">
         <form className="wizard-form" onSubmit={save}>
-          <span className="eyebrow">Edit listing</span>
+          <span className="eyebrow">Listing & pricing</span>
           <h1>{property.title}</h1>
 
           <label>Listing title<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-          <label>Nightly price (₹)<input type="number" min="1" value={price} onChange={(e) => setPrice(Number(e.target.value))} required /></label>
+
+          <div className="form-grid">
+            <label>Base nightly price (₹)<input type="number" min="1" value={price} onChange={(e) => setPrice(Number(e.target.value))} required /></label>
+            <label>Weekend nightly price (₹)<input type="number" min="1" value={weekendPrice} placeholder="Use base price" onChange={(e) => setWeekendPrice(e.target.value ? Number(e.target.value) : '')} /></label>
+            <label>Minimum stay<input type="number" min="1" max="90" value={minimumStay} onChange={(e) => setMinimumStay(Number(e.target.value))} /></label>
+            <label>Maximum stay<input type="number" min="1" max="365" value={maximumStay} placeholder="No maximum" onChange={(e) => setMaximumStay(e.target.value ? Number(e.target.value) : '')} /></label>
+          </div>
 
           <label>
             Add photos
@@ -114,18 +180,40 @@ export default function EditPropertyPage() {
           </div>
 
           {message && <div className="auth-success">{message}</div>}
-          <button className="primary inline" type="submit"><Save size={18}/>Save changes</button>
+          <button className="primary inline" type="submit"><Save size={18}/>Save listing</button>
         </form>
 
-        <aside className="owner-calendar-panel">
-          <span className="eyebrow">Availability</span>
-          <h2>Block dates</h2>
-          <p>Use this when the property is unavailable for maintenance, personal use or another reservation source.</p>
-          <label>From<input type="date" value={blockStart} onChange={(e) => setBlockStart(e.target.value)} /></label>
-          <label>Until<input type="date" value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} /></label>
-          <button className="ghost dark" type="button" onClick={() => void blockDates()}>Block selected dates</button>
-          <div className="owner-calendar-note"><ImagePlus size={18}/>Guest bookings and owner blocks both feed the same availability API.</div>
-        </aside>
+        <div className="owner-side-stack">
+          <aside className="owner-calendar-panel">
+            <span className="eyebrow">Availability</span>
+            <h2>Block dates</h2>
+            <p>Block the property for maintenance, personal use or external reservations.</p>
+            <label>From<input type="date" value={blockStart} onChange={(e) => setBlockStart(e.target.value)} /></label>
+            <label>Until<input type="date" value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} /></label>
+            <button className="ghost dark" type="button" onClick={() => void blockDates()}>Block selected dates</button>
+            <div className="owner-calendar-note"><ImagePlus size={18}/>Guest bookings and owner blocks feed the same availability API.</div>
+          </aside>
+
+          <aside className="owner-calendar-panel">
+            <span className="eyebrow">Seasonal pricing</span>
+            <h2>Special date rates</h2>
+            <label>Rule name<input value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="Christmas / New Year" /></label>
+            <label>From<input type="date" value={ruleStart} onChange={(e) => setRuleStart(e.target.value)} /></label>
+            <label>Until<input type="date" value={ruleEnd} onChange={(e) => setRuleEnd(e.target.value)} /></label>
+            <label>Nightly rate (₹)<input type="number" min="1" value={ruleRate || ''} onChange={(e) => setRuleRate(Number(e.target.value))} /></label>
+            <label>Minimum stay<input type="number" min="1" value={ruleMinimumStay} placeholder="Property default" onChange={(e) => setRuleMinimumStay(e.target.value ? Number(e.target.value) : '')} /></label>
+            <button className="primary inline" type="button" onClick={() => void addPricingRule()}>Add pricing rule</button>
+
+            <div className="pricing-rule-list">
+              {rules.map((rule) => (
+                <div className="pricing-rule-card" key={rule.id}>
+                  <div><strong>{rule.name}</strong><small>{rule.start_date} → {rule.end_date}</small><span>₹{Number(rule.nightly_rate).toLocaleString('en-IN')}/night</span></div>
+                  <button type="button" onClick={() => void removePricingRule(rule.id)} aria-label="Delete pricing rule"><Trash2 size={16}/></button>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
   );
