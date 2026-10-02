@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.api.routes import auth, availability, bookings, messages, notifications, owner, payments, properties, reviews, super_admin, transfers, wishlist
+from src.api.routes import auth, availability, bookings, invoices, messages, notifications, owner, payments, properties, reviews, super_admin, transfers, wishlist
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
@@ -8,6 +8,7 @@ api_router.include_router(properties.router, prefix="/properties", tags=["Proper
 api_router.include_router(bookings.router, prefix="/bookings", tags=["Bookings"])
 api_router.include_router(availability.router, prefix="/availability", tags=["Availability"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])
+api_router.include_router(invoices.router, prefix="/invoices", tags=["Invoices"])
 api_router.include_router(reviews.router, prefix="/reviews", tags=["Reviews"])
 api_router.include_router(transfers.router, prefix="/transfers", tags=["Transfers"])
 api_router.include_router(wishlist.router, prefix="/wishlist", tags=["Wishlist"])
