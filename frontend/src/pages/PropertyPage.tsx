@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { properties } from '../data';
 import { authStore } from '../lib/auth';
 import { reviewApi, type ReviewableBooking } from '../lib/api';
+import TransferOption from '../components/TransferOption';
 
 export default function PropertyPage() {
   const { id } = useParams();
@@ -99,6 +100,13 @@ export default function PropertyPage() {
 
           <h2>Amenities</h2>
           <div className="amenity-grid">{p.amenities.map((x) => <span key={x}>{x}</span>)}</div>
+
+          <TransferOption
+            propertyId={p.id}
+            propertyName={p.title}
+            latitude={p.latitude}
+            longitude={p.longitude}
+          />
 
           <section className="reviews-section">
             <div className="reviews-head">
