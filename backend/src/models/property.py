@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,8 @@ class Property(Base):
     state: Mapped[str] = mapped_column(String(120), nullable=False)
     country: Mapped[str] = mapped_column(String(120), default="India", nullable=False)
     postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     guests: Mapped[int] = mapped_column(Integer, nullable=False)
     bedrooms: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -66,3 +68,4 @@ class Property(Base):
     owner = relationship("User", back_populates="properties")
     bookings = relationship("Booking", back_populates="property")
     review_entries = relationship("Review", back_populates="property", cascade="all, delete-orphan")
+    transfer_requests = relationship("TransferRequest", back_populates="property", cascade="all, delete-orphan")
