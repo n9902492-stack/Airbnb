@@ -1,13 +1,16 @@
 import { FormEvent, useState } from 'react';
 import { ArrowLeft, Bath, BedDouble, House, MapPin, ShieldCheck, Star, Users } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { properties } from '../data';
 import { authStore } from '../lib/auth';
 import { reviewApi, type ReviewableBooking } from '../lib/api';
 import TransferOption from '../components/TransferOption';
+import AvailabilityCalendar from '../components/AvailabilityCalendar';
+import { bookingApi } from '../lib/api';
 
 export default function PropertyPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const p = properties.find((x) => x.id === Number(id)) ?? properties[0];
   const user = authStore.getUser();
   const [reviewText, setReviewText] = useState('');
@@ -15,6 +18,11 @@ export default function PropertyPage() {
   const [notice, setNotice] = useState('');
   const [reviewable, setReviewable] = useState<ReviewableBooking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<number | null>(null);
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [guestCount, setGuestCount] = useState(1);
+  const [bookingMessage, setBookingMessage] = useState('');
+  const [bookingBusy, setBookingBusy] = useState(false);
 
   async function loadReviewable() {
     if (!user) return;
@@ -25,6 +33,33 @@ export default function PropertyPage() {
       setSelectedBooking(matches[0]?.id ?? null);
     } catch {
       setReviewable([]);
+    }
+  }
+
+  async function reserveStay() {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (!checkIn || !checkOut) {
+      setBookingMessage('Select available check-in and check-out dates first.');
+      return;
+    }
+
+    setBookingBusy(true);
+    setBookingMessage('');
+    try {
+      const booking = await bookingApi.create({
+        property_id: p.id,
+        check_in: checkIn,
+        check_out: checkOut,
+        guest_count: guestCount,
+      });
+      navigate('/checkout/' + booking.id);
+    } catch (err) {
+      setBookingMessage(err instanceof Error ? err.message : 'Unable to reserve these dates');
+    } finally {
+      setBookingBusy(false);
     }
   }
 
@@ -100,6 +135,14 @@ export default function PropertyPage() {
 
           <h2>Amenities</h2>
           <div className="amenity-grid">{p.amenities.map((x) => <span key={x}>{x}</span>)}</div>
+
+          <AvailabilityCalendar
+            propertyId={p.id}
+            onChange={({ checkIn: nextIn, checkOut: nextOut }) => {
+              setCheckIn(nextIn);
+              setCheckOut(nextOut);
+            }}
+          />
 
           <TransferOption
             propertyId={p.id}
@@ -178,12 +221,13 @@ export default function PropertyPage() {
         <aside className="booking-card">
           <h3>₹{p.pricePerNight.toLocaleString('en-IN')} <span>/ night</span></h3>
           <div className="booking-fields">
-            <div><small>Check in</small><strong>Add date</strong></div>
-            <div><small>Check out</small><strong>Add date</strong></div>
-            <div className="wide"><small>Guests</small><strong>1 guest</strong></div>
+            <div><small>Check in</small><strong>{checkIn || 'Select date'}</strong></div>
+            <div><small>Check out</small><strong>{checkOut || 'Select date'}</strong></div>
+            <label className="wide booking-guest-field"><small>Guests</small><select value={guestCount} onChange={(e) => setGuestCount(Number(e.target.value))}>{Array.from({length:p.guests},(_,i)=><option key={i+1} value={i+1}>{i+1} guest{i ? 's' : ''}</option>)}</select></label>
           </div>
-          <button className="primary">Reserve</button>
-          <small>You won't be charged yet</small>
+          {bookingMessage && <div className="auth-error">{bookingMessage}</div>}
+          <button className="primary" disabled={bookingBusy} onClick={() => void reserveStay()}>{bookingBusy ? 'Checking…' : 'Reserve'}</button>
+          <small>You won't be charged until checkout</small>
         </aside>
       </div>
     </main>
