@@ -32,6 +32,14 @@ if settings.app_env == "production":
         not settings.razorpay_key_id or not settings.razorpay_key_secret
     ):
         raise RuntimeError("Razorpay is enabled but production credentials are missing")
+    if settings.razorpay_route_enabled and settings.payment_provider != "razorpay":
+        raise RuntimeError("Razorpay Route requires PAYMENT_PROVIDER=razorpay")
+    if (
+        settings.razorpay_route_enabled
+        and settings.razorpay_route_webhook_required
+        and not settings.razorpay_webhook_secret
+    ):
+        raise RuntimeError("Razorpay Route requires a webhook secret for reconciliation")
 
 app = FastAPI(
     title=settings.app_name,
