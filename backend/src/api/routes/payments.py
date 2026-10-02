@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,7 @@ from src.schemas.payment import CheckoutPreview, PaymentRead, PaymentSession, Ra
 from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.payment_service import PaymentService
 from src.services.payout_automation_service import PayoutAutomationService
+from src.services.promotion_service import PromotionService
 from src.services.razorpay_service import RazorpayService
 from src.services.tax_service import TaxService
 
@@ -26,6 +27,7 @@ router = APIRouter()
 @router.get("/checkout/{booking_id}", response_model=CheckoutPreview)
 async def checkout_preview(
     booking_id: int,
+    promo_code: str | None = Query(default=None, max_length=40),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -40,7 +42,15 @@ async def checkout_preview(
         select(TransferRequest).where(TransferRequest.booking_id == booking.id)
     )
     transfer_fee = Decimal(str(transfer.estimated_fare)) if transfer else Decimal("0")
-    taxable_amount = Decimal(booking.total_amount) + transfer_fee
+    pre_discount = Decimal(booking.total_amount) + transfer_fee
+    try:
+        promo, discount_amount = await PromotionService.calculate_discount(
+            db, promo_code, pre_discount
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    taxable_amount = max(Decimal("0"), pre_discount - discount_amount)
     gst_rate, gst_amount = TaxService.calculate(taxable_amount)
 
     return {
@@ -48,6 +58,8 @@ async def checkout_preview(
         "stay_subtotal": booking.subtotal,
         "service_fee": booking.service_fee,
         "transfer_fee": transfer_fee,
+        "discount_amount": discount_amount,
+        "promo_code": promo.code if promo else None,
         "gst_rate": gst_rate,
         "gst_amount": gst_amount,
         "grand_total": taxable_amount + gst_amount,
@@ -58,6 +70,7 @@ async def checkout_preview(
 @router.post("/checkout/{booking_id}", response_model=PaymentSession)
 async def create_payment(
     booking_id: int,
+    promo_code: str | None = Query(default=None, max_length=40),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -77,7 +90,9 @@ async def create_payment(
         )
         transfer_fee = Decimal(str(transfer.estimated_fare)) if transfer else Decimal("0")
         try:
-            payment = await PaymentService.create_for_booking(db, booking, transfer_fee)
+            payment = await PaymentService.create_for_booking(
+                db, booking, transfer_fee, promo_code
+            )
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Payment provider error: {exc}")
 
