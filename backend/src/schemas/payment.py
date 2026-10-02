@@ -18,3 +18,24 @@ class PaymentRead(BaseModel):
     amount: Decimal
     currency: str
     status: str
+
+
+class PaymentSession(PaymentRead):
+    provider: str
+    razorpay_key_id: str | None = None
+    provider_order_id: str | None = None
+    amount_paise: int | None = None
+
+
+class RazorpayVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+class CancellationResult(BaseModel):
+    booking_id: int
+    status: str
+    refund_amount: Decimal
+    refund_percent: int
+    message: str
