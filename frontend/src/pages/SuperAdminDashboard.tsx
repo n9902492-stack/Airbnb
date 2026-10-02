@@ -12,20 +12,23 @@ export default function SuperAdminDashboard() {
   const [finance, setFinance] = useState<AdminFinance>({ collected: 0, refunds: 0, platform_commission: 0, owner_payable: 0, owner_paid: 0, payouts: [] });
   const [linkedAccounts, setLinkedAccounts] = useState<Record<number,string>>({});
   const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof adminApi.auditLogs>>>([]);
+  const [pendingOfferings, setPendingOfferings] = useState<Awaited<ReturnType<typeof adminApi.pendingOfferings>>>([]);
 
   async function refresh() {
-    const [summary, items, bookingItems, financeData, auditItems] = await Promise.all([
+    const [summary, items, bookingItems, financeData, auditItems, offeringItems] = await Promise.all([
       adminApi.overview(),
       adminApi.pendingProperties(),
       adminBookingApi.list(),
       financeApi.admin(),
       adminApi.auditLogs(),
+      adminApi.pendingOfferings(),
     ]);
     setOverview(summary);
     setPending(items);
     setBookings(bookingItems);
     setFinance(financeData);
     setAuditLogs(auditItems);
+    setPendingOfferings(offeringItems);
   }
 
   useEffect(() => {
@@ -119,6 +122,33 @@ export default function SuperAdminDashboard() {
                     <div className="moderation-actions">
                       <button className="primary inline" onClick={() => void approve(item.id)}>Approve</button>
                       <button className="ghost dark" onClick={() => void reject(item.id)}>Reject</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Services & experiences moderation</h2><p>{pendingOfferings.length} host-led offering{pendingOfferings.length === 1 ? '' : 's'} awaiting review.</p></div></div>
+          {pendingOfferings.length === 0 ? <p>No services or experiences are awaiting moderation.</p> : (
+            <div className="admin-moderation-grid">
+              {pendingOfferings.map((item)=> {
+                const image = item.image_urls?.[0];
+                return (
+                  <article className="admin-listing-card" key={'offering-admin-' + item.id}>
+                    {image && <img src={image.startsWith('/uploads') ? 'http://localhost:8000' + image : image} alt={item.title}/>}
+                    <div><strong>{item.title}</strong><p>{item.kind} · {item.category} · {item.city}, {item.state}</p><small>Host #{item.host_id} · ₹{Number(item.price).toLocaleString('en-IN')}</small></div>
+                    <textarea placeholder="Reason if rejecting" value={reason[1000000 + item.id] ?? ''} onChange={(e)=>setReason((current)=>({...current,[1000000 + item.id]:e.target.value}))}/>
+                    <div className="moderation-actions">
+                      <button className="primary inline" onClick={async()=>{await adminApi.approveOffering(item.id); setMessage('Offering approved.'); await refresh();}}>Approve</button>
+                      <button className="ghost dark" onClick={async()=>{
+                        const value = reason[1000000 + item.id]?.trim();
+                        if (!value) { setMessage('Add a rejection reason first.'); return; }
+                        await adminApi.rejectOffering(item.id, value); setMessage('Offering rejected.'); await refresh();
+                      }}>Reject</button>
                     </div>
                   </article>
                 );
