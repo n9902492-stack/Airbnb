@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     cancellation_partial_refund_hours: int = 24
     cancellation_partial_refund_percent: int = 50
 
+    platform_commission_percent: float = 12.0
+
+    login_max_attempts: int = 5
+    login_attempt_window_minutes: int = 15
+    otp_resend_cooldown_seconds: int = 60
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
