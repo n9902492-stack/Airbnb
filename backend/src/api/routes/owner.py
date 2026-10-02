@@ -7,9 +7,12 @@ from src.db.session import get_db
 from src.models.availability_block import AvailabilityBlock
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
+from src.models.payout import OwnerPayout
+from src.models.pricing_rule import PricingRule
 from src.models.property import Property
 from src.models.user import User, UserRole
 from src.schemas.availability import AvailabilityBlockCreate
+from src.schemas.pricing import PricingRuleCreate
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
 from src.services.image_service import ImageService
 from src.services.property_service import PropertyService
@@ -91,6 +94,115 @@ async def owner_reservations(
         }
         for booking, property_obj, guest in result.all()
     ]
+
+
+@router.get("/properties/{property_id}/pricing-rules")
+async def list_pricing_rules(
+    property_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    property_obj = await db.get(Property, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if current_user.role != UserRole.SUPER_ADMIN and property_obj.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your property")
+
+    result = await db.execute(
+        select(PricingRule)
+        .where(PricingRule.property_id == property_id)
+        .order_by(PricingRule.start_date.asc())
+    )
+    return [
+        {
+            "id": rule.id,
+            "name": rule.name,
+            "start_date": rule.start_date,
+            "end_date": rule.end_date,
+            "nightly_rate": float(rule.nightly_rate),
+            "minimum_stay_nights": rule.minimum_stay_nights,
+        }
+        for rule in result.scalars().all()
+    ]
+
+
+@router.post("/properties/{property_id}/pricing-rules")
+async def create_pricing_rule(
+    property_id: int,
+    payload: PricingRuleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    property_obj = await db.get(Property, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if current_user.role != UserRole.SUPER_ADMIN and property_obj.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your property")
+
+    rule = PricingRule(property_id=property_id, **payload.model_dump())
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    return {
+        "id": rule.id,
+        "name": rule.name,
+        "start_date": rule.start_date,
+        "end_date": rule.end_date,
+        "nightly_rate": float(rule.nightly_rate),
+        "minimum_stay_nights": rule.minimum_stay_nights,
+    }
+
+
+@router.delete("/properties/{property_id}/pricing-rules/{rule_id}")
+async def delete_pricing_rule(
+    property_id: int,
+    rule_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    property_obj = await db.get(Property, property_id)
+    if not property_obj:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if current_user.role != UserRole.SUPER_ADMIN and property_obj.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your property")
+
+    rule = await db.get(PricingRule, rule_id)
+    if rule and rule.property_id == property_id:
+        await db.delete(rule)
+        await db.commit()
+    return {"ok": True}
+
+
+@router.get("/payouts")
+async def owner_payouts(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    result = await db.execute(
+        select(OwnerPayout)
+        .where(OwnerPayout.owner_id == current_user.id)
+        .order_by(OwnerPayout.created_at.desc())
+    )
+    items = list(result.scalars().all())
+    return {
+        "pending": sum(float(x.owner_amount) for x in items if x.status.value in {"pending", "ready", "processing"}),
+        "paid": sum(float(x.owner_amount) for x in items if x.status.value == "paid"),
+        "commission": sum(float(x.platform_commission) for x in items),
+        "payouts": [
+            {
+                "id": x.id,
+                "booking_id": x.booking_id,
+                "gross_amount": float(x.gross_amount),
+                "platform_commission": float(x.platform_commission),
+                "owner_amount": float(x.owner_amount),
+                "refund_adjustment": float(x.refund_adjustment),
+                "status": x.status.value,
+                "created_at": x.created_at,
+                "paid_at": x.paid_at,
+            }
+            for x in items
+        ],
+    }
 
 
 @router.get("/earnings")
