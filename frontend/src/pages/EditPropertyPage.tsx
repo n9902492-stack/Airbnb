@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeft, ImagePlus, Save, Trash2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { ownerApi, ownerManagementApi, type OwnerProperty } from '../lib/api';
+import { collaborationApi, ownerApi, ownerManagementApi, type OwnerProperty } from '../lib/api';
 
 type PricingRule = Awaited<ReturnType<typeof ownerManagementApi.pricingRules>>[number];
 
@@ -25,14 +25,19 @@ export default function EditPropertyPage() {
   const [ruleRate, setRuleRate] = useState(0);
   const [ruleMinimumStay, setRuleMinimumStay] = useState<number | ''>('');
   const [message, setMessage] = useState('');
+  const [cohosts, setCohosts] = useState<Awaited<ReturnType<typeof collaborationApi.cohosts>>>([]);
+  const [cohostEmail, setCohostEmail] = useState('');
+  const [cohostPermission, setCohostPermission] = useState<'calendar'|'messages'|'full'>('calendar');
   const [uploading, setUploading] = useState(false);
 
   async function load() {
     try {
-      const [items, pricingRules] = await Promise.all([
+      const [items, pricingRules, cohostItems] = await Promise.all([
         ownerManagementApi.getProperties(),
         ownerManagementApi.pricingRules(id),
+        collaborationApi.cohosts(id).catch(() => []),
       ]);
+      setCohosts(cohostItems);
       const found = items.find((item) => item.id === id) ?? null;
       setProperty(found);
       setRules(pricingRules);
@@ -192,6 +197,40 @@ export default function EditPropertyPage() {
             <label>Until<input type="date" value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} /></label>
             <button className="ghost dark" type="button" onClick={() => void blockDates()}>Block selected dates</button>
             <div className="owner-calendar-note"><ImagePlus size={18}/>Guest bookings and owner blocks feed the same availability API.</div>
+          </aside>
+
+
+          <aside className="owner-calendar-panel">
+            <span className="eyebrow">Co-host team</span>
+            <h2>Share hosting work</h2>
+            <p>Add an existing Nestora user and choose what they can manage.</p>
+            <label>Email<input type="email" value={cohostEmail} onChange={(e)=>setCohostEmail(e.target.value)} placeholder="cohost@example.com"/></label>
+            <label>Permission
+              <select value={cohostPermission} onChange={(e)=>setCohostPermission(e.target.value as typeof cohostPermission)}>
+                <option value="calendar">Calendar only</option>
+                <option value="messages">Calendar & messages</option>
+                <option value="full">Full access</option>
+              </select>
+            </label>
+            <button className="primary inline" type="button" onClick={async()=>{
+              const email = cohostEmail.trim();
+              if (!email) return;
+              await collaborationApi.addCohost(id,email,cohostPermission);
+              setCohostEmail('');
+              setCohosts(await collaborationApi.cohosts(id));
+              setMessage('Co-host access updated.');
+            }}>Add co-host</button>
+            <div className="cohost-list">
+              {cohosts.map((cohost)=>(
+                <div key={cohost.id}>
+                  <span><strong>{cohost.name}</strong><small>{cohost.email} · {cohost.permission}</small></span>
+                  <button type="button" className="ghost dark" onClick={async()=>{
+                    await collaborationApi.removeCohost(id,cohost.id);
+                    setCohosts((current)=>current.filter((x)=>x.id!==cohost.id));
+                  }}>Remove</button>
+                </div>
+              ))}
+            </div>
           </aside>
 
           <aside className="owner-calendar-panel">
