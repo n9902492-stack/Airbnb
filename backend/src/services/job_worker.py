@@ -9,8 +9,10 @@ from src.services.email_service import EmailService
 from sqlalchemy import select
 from datetime import datetime, timezone
 
+from src.models.booking import Booking
 from src.models.message import BookingMessage
 from src.models.message_automation import ScheduledMessage
+from src.models.property import Property
 from src.services.notification_service import NotificationService
 from src.services.payout_automation_service import PayoutAutomationService
 
@@ -22,13 +24,14 @@ async def handle_job(name: str, payload: dict) -> None:
             await BookingLifecycleService.complete_finished_stays(db)
             await PayoutAutomationService.process_ready(db)
 
-            scheduled = await db.execute(
+            scheduled_result = await db.execute(
                 select(ScheduledMessage).where(
                     ScheduledMessage.sent_at.is_(None),
                     ScheduledMessage.send_at <= datetime.now(timezone.utc),
                 )
             )
-            for item in scheduled.scalars().all():
+            scheduled_items = list(scheduled_result.scalars().all())
+            for item in scheduled_items:
                 message = BookingMessage(
                     booking_id=item.booking_id,
                     sender_id=item.sender_id,
@@ -37,7 +40,24 @@ async def handle_job(name: str, payload: dict) -> None:
                 db.add(message)
                 item.sent_at = datetime.now(timezone.utc)
 
-            if scheduled:
+                booking = await db.get(Booking, item.booking_id)
+                if booking:
+                    property_obj = await db.get(Property, booking.property_id)
+                    recipient_id = (
+                        booking.guest_id
+                        if property_obj and item.sender_id == property_obj.owner_id
+                        else property_obj.owner_id if property_obj else None
+                    )
+                    if recipient_id:
+                        await NotificationService.create(
+                            db,
+                            recipient_id,
+                            "scheduled_booking_message",
+                            "New booking message",
+                            f"A scheduled message was sent for booking #{booking.id}.",
+                        )
+
+            if scheduled_items:
                 await db.commit()
         return
 
