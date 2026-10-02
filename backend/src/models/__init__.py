@@ -1,3 +1,4 @@
+from src.models.wishlist_collection_item import WishlistCollectionItem
 from src.models.wishlist_collection import WishlistCollection, WishlistCollectionMember
 from src.models.special_offer import SpecialOffer
 from src.models.offering_booking import OfferingBooking
@@ -24,6 +25,7 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "WishlistCollectionItem",
     "WishlistCollectionMember",
     "WishlistCollection",
     "SpecialOffer",
