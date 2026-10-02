@@ -1,3 +1,10 @@
+from src.models.wishlist_vote import WishlistVote
+from src.models.support_case import SupportCase
+from src.models.resolution_claim import ResolutionClaim
+from src.models.promotion import PromotionCode
+from src.models.offering_slot import OfferingAvailabilitySlot
+from src.models.message_automation import MessageTemplate, ScheduledMessage
+from src.models.identity_verification import IdentityVerification
 from src.models.wishlist_collection_item import WishlistCollectionItem
 from src.models.wishlist_collection import WishlistCollection, WishlistCollectionMember
 from src.models.special_offer import SpecialOffer
@@ -25,6 +32,14 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "WishlistVote",
+    "SupportCase",
+    "ResolutionClaim",
+    "PromotionCode",
+    "OfferingAvailabilitySlot",
+    "ScheduledMessage",
+    "MessageTemplate",
+    "IdentityVerification",
     "WishlistCollectionItem",
     "WishlistCollectionMember",
     "WishlistCollection",
