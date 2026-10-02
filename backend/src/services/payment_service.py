@@ -9,6 +9,7 @@ from src.models.payment import Payment, PaymentStatus
 from src.models.property import Property
 from src.models.user import User
 from src.services.email_service import EmailService
+from src.services.invoice_service import InvoiceService
 from src.services.notification_service import NotificationService
 from src.services.payout_service import PayoutService
 from src.services.razorpay_service import RazorpayService
@@ -79,6 +80,7 @@ class PaymentService:
         await db.refresh(payment)
 
         await PayoutService.ensure_for_paid_booking(db, booking, payment.amount)
+        await InvoiceService.ensure_for_booking(db, booking)
 
         property_obj = await db.get(Property, booking.property_id)
         guest = await db.get(User, booking.guest_id)
