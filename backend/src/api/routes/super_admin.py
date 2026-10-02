@@ -134,7 +134,7 @@ async def set_owner_payout_account(
         actor_user_id=current_admin.id,
         entity_type="owner",
         entity_id=owner_id,
-        request_id=request.headers.get("x-request-id"),
+        request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
         metadata={"provider": account.provider},
     )
@@ -201,7 +201,7 @@ async def mark_payout_paid(
         actor_user_id=current_admin.id,
         entity_type="owner_payout",
         entity_id=payout.id,
-        request_id=request.headers.get("x-request-id"),
+        request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
         metadata={"provider_reference": provider_reference},
     )
@@ -267,7 +267,7 @@ async def admin_cancel_booking(
         actor_user_id=current_admin.id,
         entity_type="booking",
         entity_id=booking.id,
-        request_id=request.headers.get("x-request-id"),
+        request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
         metadata={"reason": reason, "refund_amount": str(refund_amount)},
     )
@@ -300,7 +300,7 @@ async def approve_property(
         actor_user_id=current_admin.id,
         entity_type="property",
         entity_id=property_obj.id,
-        request_id=request.headers.get("x-request-id"),
+        request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
     )
 
@@ -328,7 +328,7 @@ async def reject_property(
         actor_user_id=current_admin.id,
         entity_type="property",
         entity_id=property_obj.id,
-        request_id=request.headers.get("x-request-id"),
+        request_id=getattr(request.state, "request_id", None),
         ip_address=request.client.host if request.client else None,
         metadata={"reason": reason},
     )
