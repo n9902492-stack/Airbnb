@@ -1,58 +1,14 @@
-import type { CurrentUser } from './auth';
 import {
-  API_BASE_URL as API_BASE,
   apiRequest as request,
   authHeaders,
   uploadFileWithAuth,
 } from '../api/client';
 
-export const authApi = {
-  register: (payload: { full_name: string; email: string; password: string; account_type: 'user' | 'owner' }) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
-
-  verifyEmail: (payload: { email: string; otp: string }) =>
-    request<{ message: string }>('/auth/verify-email', { method: 'POST', body: JSON.stringify(payload) }),
-
-  resendOtp: (email: string) =>
-    request<{ message: string }>('/auth/resend-verification-otp', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    }),
-
-  login: async (email: string, password: string) => {
-    const response = await fetch(API_BASE + '/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ username: email, password }),
-      credentials: 'include',
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail ?? 'Unable to sign in');
-    return data as { access_token: string; token_type: string };
-  },
-
-  logout: () =>
-    request<{ ok: boolean }>('/auth/logout', {
-      method: 'POST',
-    }),
-
-  me: () =>
-    request<CurrentUser>('/auth/me', {
-      headers: authHeaders(),
-    }),
-
-  forgotPassword: (email: string) =>
-    request<{ message: string }>('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    }),
-
-  resetPassword: (payload: { email: string; otp: string; new_password: string }) =>
-    request<{ message: string }>('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-};
+export { authApi } from '../api/auth';
+export { bookingApi } from '../api/bookings';
+export type { AvailabilityResponse, BookingResult } from '../api/bookings';
+export { propertyApi } from '../api/property';
+export type { PublicProperty, PropertySearchParams } from '../api/property';
 
 export type OwnerProperty = {
   id: number;
@@ -182,66 +138,6 @@ export const transferApi = {
     }),
 };
 
-
-export type AvailabilityResponse = {
-  property_id: number;
-  blocked_dates: string[];
-};
-
-export type BookingResult = {
-  id: number;
-  property_id: number;
-  guest_id: number;
-  check_in: string;
-  check_out: string;
-  guest_count: number;
-  subtotal: number;
-  service_fee: number;
-  total_amount: number;
-  status: 'requested' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
-};
-
-export const bookingApi = {
-  availability: (propertyId: number, start: string, days = 180) =>
-    request<AvailabilityResponse>(
-      '/availability/properties/' + propertyId + '?start=' + encodeURIComponent(start) + '&days=' + days
-    ),
-
-  create: (payload: { property_id: number; check_in: string; check_out: string; guest_count: number }) =>
-    request<BookingResult>('/bookings', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    }),
-
-  myTrips: () =>
-    request<Array<{
-      id: number;
-      property_id: number;
-      property_title: string;
-      check_in: string;
-      check_out: string;
-      guest_count: number;
-      total_amount: number;
-      status: string;
-      expires_at?: string | null;
-      payment_status?: string | null;
-    }>>('/bookings/my-trips', {
-      headers: authHeaders(),
-    }),
-
-  cancel: (bookingId: number, reason = 'Guest cancelled') =>
-    request<{
-      booking_id: number;
-      status: string;
-      refund_amount: number;
-      refund_percent: number;
-      message: string;
-    }>('/bookings/' + bookingId + '/cancel?reason=' + encodeURIComponent(reason), {
-      method: 'POST',
-      headers: authHeaders(),
-    }),
-};
 
 export type CheckoutPreview = {
   booking_id: number;
@@ -495,80 +391,6 @@ export const ownerManagementApi = {
     }),
 };
 
-
-export type PublicProperty = {
-  id: number;
-  owner_id: number;
-  title: string;
-  description: string;
-  property_type: string;
-  category: string;
-  address_line: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  guests: number;
-  bedrooms: number;
-  beds: number;
-  bathrooms: number;
-  price_per_night: number;
-  cleaning_fee: number;
-  weekend_price_per_night?: number | null;
-  minimum_stay_nights?: number;
-  maximum_stay_nights?: number | null;
-  amenities: string[];
-  house_rules: string[];
-  image_urls: string[];
-  check_in_time: string;
-  check_out_time: string;
-  status: string;
-  rejection_reason?: string | null;
-  booking_mode: 'instant' | 'request';
-  guest_favorite: boolean;
-};
-
-export const propertyApi = {
-  search: (params: {
-    q?: string;
-    city?: string;
-    check_in?: string;
-    check_out?: string;
-    category?: string;
-    guests?: number;
-    bedrooms?: number;
-    beds?: number;
-    bathrooms?: number;
-    property_type?: string;
-    instant_book?: boolean;
-    guest_favorite?: boolean;
-    amenities?: string[];
-    min_price?: number;
-    max_price?: number;
-    min_lat?: number;
-    max_lat?: number;
-    min_lng?: number;
-    max_lng?: number;
-  } = {}) => {
-    const qs = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== '' && value !== null) {
-        if (Array.isArray(value)) {
-          value.forEach((item) => qs.append(key, String(item)));
-        } else {
-          qs.set(key, String(value));
-        }
-      }
-    });
-    const suffix = qs.toString() ? '?' + qs.toString() : '';
-    return request<PublicProperty[]>('/properties' + suffix);
-  },
-
-  get: (propertyId: number) =>
-    request<PublicProperty>('/properties/' + propertyId),
-};
 
 export type WishlistItem = {
   id: number;
