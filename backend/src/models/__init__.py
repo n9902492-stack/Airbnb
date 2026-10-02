@@ -5,6 +5,7 @@ from src.models.message import BookingMessage
 from src.models.notification import Notification
 from src.models.payment import Payment
 from src.models.payout import OwnerPayout
+from src.models.payout_account import OwnerPayoutAccount
 from src.models.pricing_rule import PricingRule
 from src.models.property import Property
 from src.models.review import Review
@@ -21,6 +22,7 @@ __all__ = [
     "Notification",
     "Payment",
     "OwnerPayout",
+    "OwnerPayoutAccount",
     "PricingRule",
     "Property",
     "Review",
