@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.db.session import get_db
 from src.models.offering import MarketplaceOffering
 from src.models.offering_booking import OfferingBooking
+from src.models.offering_slot import OfferingAvailabilitySlot
 from src.models.user import User, UserRole
 from src.schemas.offering import OfferingBookingCreate, OfferingCreate
 from src.services.razorpay_service import RazorpayService
@@ -325,3 +326,64 @@ async def my_offering_bookings(
         }
         for b, o in result.all()
     ]
+
+
+class OfferingSlotCreate(BaseModel):
+    starts_at: datetime
+    ends_at: datetime
+    capacity: int = Field(ge=1, le=100)
+    price_override: Decimal | None = Field(default=None, gt=0)
+    private_group_price: Decimal | None = Field(default=None, gt=0)
+    is_private_available: bool = False
+
+
+@router.get("/{offering_id}/slots")
+async def offering_slots(
+    offering_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(OfferingAvailabilitySlot)
+        .where(
+            OfferingAvailabilitySlot.offering_id == offering_id,
+            OfferingAvailabilitySlot.starts_at >= datetime.now(timezone.utc),
+        )
+        .order_by(OfferingAvailabilitySlot.starts_at.asc())
+    )
+    return [
+        {
+            "id": x.id,
+            "starts_at": x.starts_at,
+            "ends_at": x.ends_at,
+            "capacity": x.capacity,
+            "price_override": float(x.price_override) if x.price_override is not None else None,
+            "private_group_price": float(x.private_group_price) if x.private_group_price is not None else None,
+            "is_private_available": x.is_private_available,
+        }
+        for x in result.scalars().all()
+    ]
+
+
+@router.post("/{offering_id}/slots")
+async def create_offering_slot(
+    offering_id: int,
+    payload: OfferingSlotCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(host_required),
+):
+    item = await db.get(MarketplaceOffering, offering_id)
+    if not item or (
+        current_user.role != UserRole.SUPER_ADMIN
+        and item.host_id != current_user.id
+    ):
+        raise HTTPException(status_code=404, detail="Offering not found")
+    if payload.ends_at <= payload.starts_at:
+        raise HTTPException(status_code=422, detail="End time must be after start time")
+    slot = OfferingAvailabilitySlot(
+        offering_id=offering_id,
+        **payload.model_dump(),
+    )
+    db.add(slot)
+    await db.commit()
+    await db.refresh(slot)
+    return {"id": slot.id}
