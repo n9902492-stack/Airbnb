@@ -13,6 +13,7 @@ from src.models.payment import Payment
 from src.models.transfer import TransferRequest
 from src.models.user import User
 from src.schemas.payment import CheckoutPreview, PaymentRead, PaymentSession, RazorpayVerifyRequest
+from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.payment_service import PaymentService
 from src.services.razorpay_service import RazorpayService
 
@@ -26,6 +27,7 @@ async def checkout_preview(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await BookingLifecycleService.expire_unpaid(db)
     booking = await db.get(Booking, booking_id)
     if not booking or booking.guest_id != current_user.id:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -53,6 +55,7 @@ async def create_payment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await BookingLifecycleService.expire_unpaid(db)
     booking = await db.get(Booking, booking_id)
     if not booking or booking.guest_id != current_user.id:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -139,7 +142,11 @@ async def demo_confirm_payment(
     if not booking or booking.guest_id != current_user.id:
         raise HTTPException(status_code=403, detail="Payment does not belong to you")
 
-    payment = await PaymentService.mark_paid(db, payment, booking)
+    try:
+        payment = await PaymentService.mark_paid(db, payment, booking)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
     return {
         "id": payment.id,
         "booking_id": payment.booking_id,
