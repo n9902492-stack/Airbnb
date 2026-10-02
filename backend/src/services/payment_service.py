@@ -13,6 +13,7 @@ from src.services.invoice_service import InvoiceService
 from src.services.notification_service import NotificationService
 from src.services.payout_service import PayoutService
 from src.services.razorpay_service import RazorpayService
+from src.services.tax_service import TaxService
 
 
 class PaymentService:
@@ -22,7 +23,9 @@ class PaymentService:
         booking: Booking,
         transfer_fee: Decimal = Decimal("0"),
     ) -> Payment:
-        amount = booking.total_amount + transfer_fee
+        taxable_amount = Decimal(booking.total_amount) + transfer_fee
+        _, gst_amount = TaxService.calculate(taxable_amount)
+        amount = taxable_amount + gst_amount
         provider = "razorpay" if settings.payment_provider == "razorpay" else "manual_demo"
 
         payment = Payment(
@@ -80,7 +83,7 @@ class PaymentService:
         await db.refresh(payment)
 
         await PayoutService.ensure_for_paid_booking(db, booking, payment.amount)
-        await InvoiceService.ensure_for_booking(db, booking)
+        await InvoiceService.ensure_for_booking(db, booking, payment.amount)
 
         property_obj = await db.get(Property, booking.property_id)
         guest = await db.get(User, booking.guest_id)
