@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.booking import Booking
@@ -19,6 +20,14 @@ class BookingService:
         property_obj: Property,
         payload: BookingCreate,
     ) -> Booking:
+        # Lock the property row so overlapping booking attempts for the same
+        # property are serialized inside PostgreSQL before availability is checked.
+        await db.execute(
+            select(Property)
+            .where(Property.id == property_obj.id)
+            .with_for_update()
+        )
+
         available = await AvailabilityService.is_available(
             db,
             property_obj.id,
