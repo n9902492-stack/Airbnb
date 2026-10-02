@@ -35,6 +35,19 @@ async def overview(
     }
 
 
+@router.get("/properties", response_model=list[PropertyRead])
+async def list_owner_properties(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(owner_required),
+):
+    result = await db.execute(
+        select(Property)
+        .where(Property.owner_id == current_user.id)
+        .order_by(Property.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
 @router.post("/properties", response_model=PropertyRead, status_code=status.HTTP_201_CREATED)
 async def create_property(
     payload: PropertyCreate,
