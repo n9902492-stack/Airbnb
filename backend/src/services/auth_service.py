@@ -18,6 +18,8 @@ class AuthService:
             full_name=payload.full_name.strip(),
             email=payload.email.lower(),
             password_hash=hash_password(payload.password),
+            is_active=False,
+            is_verified=False,
         )
         db.add(user)
         await db.commit()
@@ -34,4 +36,23 @@ class AuthService:
         user = await cls.get_by_email(db, email)
         if not user or not verify_password(password, user.password_hash):
             return None
+        if not user.is_verified or not user.is_active:
+            return None
         return user
+
+    @staticmethod
+    async def activate_verified_user(db: AsyncSession, user: User) -> User:
+        user.is_verified = True
+        user.is_active = True
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    @staticmethod
+    async def change_password(
+        db: AsyncSession,
+        user: User,
+        new_password: str,
+    ) -> None:
+        user.password_hash = hash_password(new_password)
+        await db.commit()
