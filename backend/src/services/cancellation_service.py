@@ -65,7 +65,7 @@ class CancellationService:
         await db.commit()
 
         if refund_amount > 0:
-            await PayoutService.apply_refund(db, booking.id, refund_amount)
+            await PayoutService.apply_refund(db, booking.id, percent)
 
         property_obj = await db.get(Property, booking.property_id)
         guest = await db.get(User, booking.guest_id)
