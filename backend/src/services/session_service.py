@@ -78,3 +78,21 @@ class SessionService:
             session.revoked = True
             session.last_used_at = datetime.now(timezone.utc)
             await db.commit()
+
+
+    @staticmethod
+    async def revoke_all(
+        db: AsyncSession,
+        user_id: int,
+    ) -> None:
+        from sqlalchemy import update
+
+        await db.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked.is_(False),
+            )
+            .values(revoked=True, last_used_at=datetime.now(timezone.utc))
+        )
+        await db.commit()
