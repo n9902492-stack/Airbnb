@@ -1,0 +1,20 @@
+export type Property = {
+  id: number;
+  title: string;
+  location: string;
+  country: string;
+  pricePerNight: number;
+  rating: number;
+  reviews: number;
+  guests: number;
+  bedrooms: number;
+  beds: number;
+  baths: number;
+  image: string;
+  images: string[];
+  category: string;
+  description: string;
+  host: string;
+  amenities: string[];
+  highlights: string[];
+};
