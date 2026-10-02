@@ -3,6 +3,7 @@ import { ArrowLeft, Bath, BedDouble, House, MapPin, ShieldCheck, Star, Users } f
 import { Link, useParams } from 'react-router-dom';
 import { properties } from '../data';
 import { authStore } from '../lib/auth';
+import { reviewApi, type ReviewableBooking } from '../lib/api';
 
 export default function PropertyPage() {
   const { id } = useParams();
@@ -11,14 +12,47 @@ export default function PropertyPage() {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [notice, setNotice] = useState('');
+  const [reviewable, setReviewable] = useState<ReviewableBooking[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<number | null>(null);
 
-  function submitDemoReview(event: FormEvent) {
+  async function loadReviewable() {
+    if (!user) return;
+    try {
+      const items = await reviewApi.reviewableBookings();
+      const matches = items.filter((item) => item.property_id === p.id);
+      setReviewable(matches);
+      setSelectedBooking(matches[0]?.id ?? null);
+    } catch {
+      setReviewable([]);
+    }
+  }
+
+  async function submitReview(event: FormEvent) {
     event.preventDefault();
     if (!user) {
-      setNotice('Sign in first. In production, only guests with a completed booking can publish a review.');
+      setNotice('Sign in first to review a completed stay.');
       return;
     }
-    setNotice('Review form is ready. The backend will only accept it after a completed stay.');
+
+    if (!selectedBooking) {
+      await loadReviewable();
+      setNotice('No completed, unreviewed booking is currently available for this property.');
+      return;
+    }
+
+    try {
+      await reviewApi.create(p.id, {
+        booking_id: selectedBooking,
+        rating: reviewRating,
+        comment: reviewText,
+      });
+      setNotice('Thanks. Your verified-stay review was published.');
+      setReviewText('');
+      setReviewable((current) => current.filter((item) => item.id !== selectedBooking));
+      setSelectedBooking(null);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Unable to publish review');
+    }
   }
 
   return (
@@ -95,9 +129,24 @@ export default function PropertyPage() {
               ))}
             </div>
 
-            <form className="review-form" onSubmit={submitDemoReview}>
+            <form className="review-form" onSubmit={submitReview} onFocus={() => void loadReviewable()}>
               <h3>Write a review</h3>
               <p>Only guests with a completed booking will be allowed to publish.</p>
+              {user && reviewable.length > 0 && (
+                <label>
+                  Completed stay
+                  <select
+                    value={selectedBooking ?? ''}
+                    onChange={(e) => setSelectedBooking(Number(e.target.value))}
+                  >
+                    {reviewable.map((booking) => (
+                      <option key={booking.id} value={booking.id}>
+                        {booking.check_in} to {booking.check_out}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Rating
                 <select value={reviewRating} onChange={(e) => setReviewRating(Number(e.target.value))}>
