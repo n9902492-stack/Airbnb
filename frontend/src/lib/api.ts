@@ -123,3 +123,44 @@ export const reviewApi = {
       body: JSON.stringify(payload),
     }),
 };
+
+
+export type TransferPlace = {
+  name: string;
+  full_address: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type TransferQuote = {
+  property_id: number;
+  direction: 'pickup_to_stay' | 'stay_to_dropoff';
+  place_type: 'airport' | 'railway' | 'bus_stand' | 'custom';
+  place_name: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  duration_minutes: number;
+  estimated_fare: number;
+  currency: string;
+  route_geometry: { type: 'LineString'; coordinates: number[][] };
+  pricing_note: string;
+};
+
+export const transferApi = {
+  searchPlaces: (query: string, propertyId: number) =>
+    request<TransferPlace[]>('/transfers/places?q=' + encodeURIComponent(query) + '&property_id=' + propertyId),
+
+  quote: (payload: {
+    property_id: number;
+    direction: 'pickup_to_stay' | 'stay_to_dropoff';
+    place_type: 'airport' | 'railway' | 'bus_stand' | 'custom';
+    place_name: string;
+    latitude: number;
+    longitude: number;
+  }) =>
+    request<TransferQuote>('/transfers/quote', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
