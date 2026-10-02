@@ -1028,3 +1028,21 @@ export const bookingChangeApi = {
       method:'POST', headers:authHeaders(), body:JSON.stringify(payload),
     }),
 };
+
+
+export const participantApi = {
+  list: (bookingId:number) =>
+    request<Array<{
+      id?:number; user_id:number; name:string; email:string; role:string;
+    }>>('/participants/' + bookingId, { headers:authHeaders() }),
+
+  invite: (bookingId:number, email:string) =>
+    request('/participants/' + bookingId, {
+      method:'POST', headers:authHeaders(), body:JSON.stringify({email}),
+    }),
+
+  remove: (bookingId:number, participantId:number) =>
+    request('/participants/' + bookingId + '/' + participantId, {
+      method:'DELETE', headers:authHeaders(),
+    }),
+};
