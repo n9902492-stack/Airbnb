@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,17 +7,26 @@ from fastapi.staticfiles import StaticFiles
 
 from src.api.router import api_router
 from src.core.config import settings
+from src.services.booking_expiry_worker import booking_expiry_loop
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    yield
+    expiry_task = asyncio.create_task(booking_expiry_loop())
+    try:
+        yield
+    finally:
+        expiry_task.cancel()
+        try:
+            await expiry_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
     title=settings.app_name,
     debug=settings.app_debug,
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -38,4 +48,5 @@ async def health():
         "status": "ok",
         "environment": settings.app_env,
         "database": "postgresql",
+        "payment_provider": settings.payment_provider,
     }
