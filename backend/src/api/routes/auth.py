@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_user
+from src.core.config import settings
 from src.core.security import create_access_token
 from src.db.session import get_db
 from src.models.user import User
 from src.models.verification_code import VerificationPurpose
-from src.schemas.auth import TokenResponse
+from src.schemas.auth import RefreshResponse, TokenResponse
 from src.schemas.user import UserCreate, UserRead
 from src.schemas.verification import (
     ForgotPasswordRequest,
@@ -19,9 +20,22 @@ from src.services.auth_security_service import AuthSecurityService
 from src.services.auth_service import AuthService
 from src.services.email_service import EmailService
 from src.services.otp_service import OtpService
+from src.services.session_service import SessionService
 
 
 router = APIRouter()
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=settings.refresh_cookie_name,
+        value=token,
+        httponly=True,
+        secure=settings.refresh_cookie_secure,
+        samesite="lax",
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        path="/api/v1/auth",
+    )
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -77,6 +91,8 @@ async def resend_verification_otp(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    response: Response,
+    request: Request,
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
@@ -93,7 +109,51 @@ async def login(
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     await AuthSecurityService.record(db, form.username, "login", True)
+    _, refresh = await SessionService.create(
+        db,
+        user.id,
+        request.headers.get("user-agent"),
+        request.client.host if request.client else None,
+    )
+    _set_refresh_cookie(response, refresh)
     return TokenResponse(access_token=create_access_token(str(user.id)))
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh(
+    response: Response,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    refresh_token: str | None = Cookie(default=None, alias=settings.refresh_cookie_name),
+):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh session missing")
+
+    rotated = await SessionService.rotate(
+        db,
+        refresh_token,
+        request.headers.get("user-agent"),
+        request.client.host if request.client else None,
+    )
+    if not rotated:
+        response.delete_cookie(settings.refresh_cookie_name, path="/api/v1/auth")
+        raise HTTPException(status_code=401, detail="Refresh session expired")
+
+    session, raw = rotated
+    _set_refresh_cookie(response, raw)
+    return RefreshResponse(access_token=create_access_token(str(session.user_id)))
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    refresh_token: str | None = Cookie(default=None, alias=settings.refresh_cookie_name),
+):
+    if refresh_token:
+        await SessionService.revoke(db, refresh_token)
+    response.delete_cookie(settings.refresh_cookie_name, path="/api/v1/auth")
+    return {"ok": True}
 
 
 @router.post("/forgot-password")
@@ -105,7 +165,6 @@ async def forgot_password(
     if user and user.is_verified:
         _, otp = await OtpService.create(db, user.id, VerificationPurpose.PASSWORD_RESET)
         await EmailService.send_otp(user.email, otp, VerificationPurpose.PASSWORD_RESET.value)
-
     return {"message": "If this email is registered, a password reset OTP has been sent."}
 
 
@@ -114,7 +173,6 @@ async def reset_password(
     payload: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    # Reuse UserCreate validation so reset passwords follow exactly the same strength policy.
     UserCreate(full_name="Password Reset", email=payload.email, password=payload.new_password)
 
     user = await AuthService.get_by_email(db, payload.email)
