@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.base import Base
@@ -27,6 +27,7 @@ class WishlistCollectionItem(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
