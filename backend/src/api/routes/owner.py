@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,11 +8,24 @@ from src.models.booking import Booking
 from src.models.property import Property
 from src.models.user import User, UserRole
 from src.schemas.property import PropertyCreate, PropertyRead, PropertyUpdate
+from src.services.image_service import ImageService
 from src.services.property_service import PropertyService
 
 
 router = APIRouter()
 owner_required = require_roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
+
+
+@router.post("/uploads/images")
+async def upload_property_image(
+    file: UploadFile = File(...),
+    _: User = Depends(owner_required),
+):
+    try:
+        url = await ImageService.save_property_image(file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"url": url}
 
 
 @router.get("/overview")
