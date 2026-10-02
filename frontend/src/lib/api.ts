@@ -1027,24 +1027,54 @@ export const collaborationApi = {
       headers: authHeaders(),
     }),
 
-  createWishlist: (name: string) =>
+  createWishlist: (
+    name: string,
+    planning?: { proposed_start_date?: string; proposed_end_date?: string; guest_count?: number },
+  ) =>
     request<{ id:number; name:string; share_token:string }>('/collaboration/wishlists', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...(planning ?? {}) }),
     }),
 
   wishlists: () =>
-    request<Array<{ id:number; name:string; share_token?:string | null; owner_user_id:number }>>(
+    request<Array<{
+      id:number; name:string; share_token?:string | null; owner_user_id:number;
+      proposed_start_date?:string|null; proposed_end_date?:string|null; guest_count?:number|null;
+    }>>(
       '/collaboration/wishlists',
       { headers: authHeaders() },
     ),
 
-  addWishlistItem: (collectionId: number, propertyId: number) =>
+  wishlistDetail: (collectionId: number) =>
+    request<{
+      id:number; name:string; proposed_start_date?:string|null; proposed_end_date?:string|null;
+      guest_count?:number|null; items:Array<{
+        id:number; property_id:number; title:string; city:string; state:string;
+        image_urls:string[]; price_per_night:number; note?:string|null; vote_score:number;
+      }>;
+    }>('/collaboration/wishlists/' + collectionId, { headers:authHeaders() }),
+
+  updateWishlist: (collectionId:number, payload:unknown) =>
+    request('/collaboration/wishlists/' + collectionId, {
+      method:'PATCH', headers:authHeaders(), body:JSON.stringify(payload),
+    }),
+
+  addWishlistItem: (collectionId: number, propertyId: number, note?:string) =>
     request('/collaboration/wishlists/' + collectionId + '/items', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ property_id: propertyId }),
+      body: JSON.stringify({ property_id: propertyId, note:note ?? null }),
+    }),
+
+  updateWishlistNote: (collectionId:number, itemId:number, note:string) =>
+    request('/collaboration/wishlists/' + collectionId + '/items/' + itemId + '/note', {
+      method:'PATCH', headers:authHeaders(), body:JSON.stringify({note}),
+    }),
+
+  voteWishlistItem: (collectionId:number, itemId:number, value:-1|0|1) =>
+    request('/collaboration/wishlists/' + collectionId + '/items/' + itemId + '/vote', {
+      method:'POST', headers:authHeaders(), body:JSON.stringify({value}),
     }),
 
   joinWishlist: (shareToken: string) =>
