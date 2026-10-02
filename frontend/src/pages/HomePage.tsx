@@ -36,6 +36,8 @@ export default function HomePage() {
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [query, setQuery] = useState('');
   const [guests, setGuests] = useState(1);
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
   const [category, setCategory] = useState('All stays');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -74,6 +76,8 @@ export default function HomePage() {
             ? undefined
             : selectedCategory.replace('Design homes', 'Design home'),
           guests,
+          check_in: checkIn || undefined,
+          check_out: checkOut || undefined,
           bedrooms: bedrooms === '' ? undefined : bedrooms,
           beds: beds === '' ? undefined : beds,
           bathrooms: bathrooms === '' ? undefined : bathrooms,
@@ -233,10 +237,23 @@ export default function HomePage() {
             ))}
           </select>
         </label>
-        <div>
-          <small>{tab === 'homes' ? 'Dates' : 'When'}</small>
-          <strong>{tab === 'homes' ? 'Choose on listing' : 'Choose after opening'}</strong>
-        </div>
+        {tab === 'homes' ? (
+          <>
+            <label>
+              <small>Check in</small>
+              <input type="date" value={checkIn} onChange={(e)=>setCheckIn(e.target.value)}/>
+            </label>
+            <label>
+              <small>Check out</small>
+              <input type="date" min={checkIn || undefined} value={checkOut} onChange={(e)=>setCheckOut(e.target.value)}/>
+            </label>
+          </>
+        ) : (
+          <div>
+            <small>When</small>
+            <strong>Choose after opening</strong>
+          </div>
+        )}
         <button className="search-btn" type="submit"><Search size={20}/></button>
       </form>
     </section>
