@@ -45,7 +45,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 if settings.app_env == "production":
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=[settings.frontend_url.replace("https://", "").replace("http://", "").split("/")[0], "localhost"],
+        allowed_hosts=[host.strip() for host in settings.allowed_hosts.split(",") if host.strip()],
     )
 
 app.add_middleware(
