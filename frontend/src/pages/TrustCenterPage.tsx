@@ -14,6 +14,9 @@ export default function TrustCenterPage() {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [message, setMessage] = useState('');
+  const [claimBookingId, setClaimBookingId] = useState('');
+  const [claimAmount, setClaimAmount] = useState<number | ''>('');
+  const [claimReason, setClaimReason] = useState('');
 
   async function load() {
     try {
@@ -113,11 +116,48 @@ export default function TrustCenterPage() {
           </div>
         </div>
 
+
+        <form className="panel" onSubmit={async(event)=>{
+          event.preventDefault();
+          if (!claimBookingId || claimAmount === '' || !claimReason.trim()) return;
+          try {
+            await trustApi.createClaim({
+              booking_id:Number(claimBookingId),
+              amount:Number(claimAmount),
+              reason:claimReason,
+              evidence_urls:[],
+            });
+            setClaimBookingId('');
+            setClaimAmount('');
+            setClaimReason('');
+            setMessage('Resolution Center request sent to the other reservation participant.');
+            await load();
+          } catch (err) {
+            setMessage(err instanceof Error ? err.message : 'Unable to create claim');
+          }
+        }}>
+          <h2><WalletCards size={20}/> Request money / report damage</h2>
+          <p>Use this for reservation-related reimbursement or damage requests. You must be a guest or host on the booking.</p>
+          <div className="form-grid">
+            <label>Booking ID<input inputMode="numeric" value={claimBookingId} onChange={(e)=>setClaimBookingId(e.target.value.replace(/\D/g,''))} required/></label>
+            <label>Amount (₹)<input type="number" min="1" value={claimAmount} onChange={(e)=>setClaimAmount(e.target.value ? Number(e.target.value) : '')} required/></label>
+          </div>
+          <label>Reason<textarea value={claimReason} onChange={(e)=>setClaimReason(e.target.value)} minLength={10} required/></label>
+          <button className="primary inline">Send request</button>
+        </form>
+
         <div className="panel">
           <h2><WalletCards size={20}/> Resolution Center</h2>
           <div className="support-list">
             {claims.length === 0 ? <p>No money requests or damage claims.</p> : claims.map((claim)=>(
-              <article key={claim.id}><div><strong>Claim #{claim.id} · ₹{Number(claim.amount).toLocaleString('en-IN')}</strong><small>Booking #{claim.booking_id}</small><p>{claim.reason}</p></div><span className={'booking-status ' + claim.status}>{claim.status}</span></article>
+              <article key={claim.id}><div><strong>Claim #{claim.id} · ₹{Number(claim.amount).toLocaleString('en-IN')}</strong><small>Booking #{claim.booking_id}</small><p>{claim.reason}</p></div><span className={'booking-status ' + claim.status}>{claim.status}</span>
+                {claim.respondent_id && claim.status === 'requested' && (
+                  <div className="moderation-actions">
+                    <button className="primary inline" onClick={async()=>{try{await trustApi.respondClaim(claim.id,'accepted');await load();}catch{}}}>Accept</button>
+                    <button className="ghost dark" onClick={async()=>{try{await trustApi.respondClaim(claim.id,'declined');await load();}catch{}}}>Decline</button>
+                  </div>
+                )}
+              </article>
             ))}
           </div>
         </div>
