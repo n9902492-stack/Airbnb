@@ -8,6 +8,8 @@ class CheckoutPreview(BaseModel):
     stay_subtotal: Decimal
     service_fee: Decimal
     transfer_fee: Decimal
+    gst_rate: Decimal
+    gst_amount: Decimal
     grand_total: Decimal
     currency: str = "INR"
 
