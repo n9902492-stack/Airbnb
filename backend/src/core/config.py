@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     transfer_railway_surcharge: float = 60.0
     transfer_bus_surcharge: float = 40.0
 
+    booking_hold_minutes: int = 15
+
+    payment_provider: str = "demo"
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
+    cancellation_full_refund_hours: int = 48
+    cancellation_partial_refund_hours: int = 24
+    cancellation_partial_refund_percent: int = 50
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
