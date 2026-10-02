@@ -11,18 +11,21 @@ export default function SuperAdminDashboard() {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [finance, setFinance] = useState<AdminFinance>({ collected: 0, refunds: 0, platform_commission: 0, owner_payable: 0, owner_paid: 0, payouts: [] });
   const [linkedAccounts, setLinkedAccounts] = useState<Record<number,string>>({});
+  const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof adminApi.auditLogs>>>([]);
 
   async function refresh() {
-    const [summary, items, bookingItems, financeData] = await Promise.all([
+    const [summary, items, bookingItems, financeData, auditItems] = await Promise.all([
       adminApi.overview(),
       adminApi.pendingProperties(),
       adminBookingApi.list(),
       financeApi.admin(),
+      adminApi.auditLogs(),
     ]);
     setOverview(summary);
     setPending(items);
     setBookings(bookingItems);
     setFinance(financeData);
+    setAuditLogs(auditItems);
   }
 
   useEffect(() => {
@@ -153,6 +156,26 @@ export default function SuperAdminDashboard() {
                 }}>Save payout account</button>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Audit trail</h2><p>Recent privileged platform changes with actor and request identifiers.</p></div></div>
+          <div className="reservation-table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Entity</th><th>Request ID</th></tr></thead>
+              <tbody>
+                {auditLogs.map((item) => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.created_at).toLocaleString('en-IN')}</td>
+                    <td>{item.action}</td>
+                    <td>{item.actor_user_id ? '#' + item.actor_user_id : 'system'}</td>
+                    <td>{item.entity_type ?? '—'} {item.entity_id ? '#' + item.entity_id : ''}</td>
+                    <td><small>{item.request_id ?? '—'}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
