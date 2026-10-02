@@ -1,6 +1,8 @@
+from src.models.audit_log import AuditLog
 from src.models.auth_event import AuthEvent
 from src.models.availability_block import AvailabilityBlock
 from src.models.booking import Booking
+from src.models.invoice import Invoice
 from src.models.message import BookingMessage
 from src.models.notification import Notification
 from src.models.payment import Payment
@@ -9,16 +11,20 @@ from src.models.payout_account import OwnerPayoutAccount
 from src.models.pricing_rule import PricingRule
 from src.models.property import Property
 from src.models.review import Review
+from src.models.session import AuthSession
 from src.models.transfer import TransferRequest
 from src.models.user import User
 from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "AuditLog",
     "AuthEvent",
+    "AuthSession",
     "AvailabilityBlock",
     "Booking",
     "BookingMessage",
+    "Invoice",
     "Notification",
     "Payment",
     "OwnerPayout",
