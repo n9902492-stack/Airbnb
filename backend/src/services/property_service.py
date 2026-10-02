@@ -17,8 +17,19 @@ class PropertyService:
         city: str | None = None,
         category: str | None = None,
         guests: int | None = None,
+        bedrooms: int | None = None,
+        beds: int | None = None,
+        bathrooms: int | None = None,
+        property_type: str | None = None,
+        instant_book: bool | None = None,
+        guest_favorite: bool | None = None,
+        amenities: list[str] | None = None,
         min_price: Decimal | None = None,
         max_price: Decimal | None = None,
+        min_lat: float | None = None,
+        max_lat: float | None = None,
+        min_lng: float | None = None,
+        max_lng: float | None = None,
     ) -> list[Property]:
         statement = select(Property).where(Property.status == PropertyStatus.LIVE)
 
@@ -40,12 +51,37 @@ class PropertyService:
             statement = statement.where(Property.category.ilike(category.strip()))
         if guests is not None:
             statement = statement.where(Property.guests >= guests)
+        if bedrooms is not None:
+            statement = statement.where(Property.bedrooms >= bedrooms)
+        if beds is not None:
+            statement = statement.where(Property.beds >= beds)
+        if bathrooms is not None:
+            statement = statement.where(Property.bathrooms >= bathrooms)
+        if property_type:
+            statement = statement.where(Property.property_type.ilike(property_type.strip()))
+        if instant_book is not None:
+            statement = statement.where(
+                Property.booking_mode == ("instant" if instant_book else "request")
+            )
+        if guest_favorite is not None:
+            statement = statement.where(Property.guest_favorite == guest_favorite)
+        if amenities:
+            statement = statement.where(Property.amenities.contains(amenities))
         if min_price is not None:
             statement = statement.where(Property.price_per_night >= min_price)
         if max_price is not None:
             statement = statement.where(Property.price_per_night <= max_price)
 
-        statement = statement.order_by(Property.created_at.desc())
+        if min_lat is not None:
+            statement = statement.where(Property.latitude >= min_lat)
+        if max_lat is not None:
+            statement = statement.where(Property.latitude <= max_lat)
+        if min_lng is not None:
+            statement = statement.where(Property.longitude >= min_lng)
+        if max_lng is not None:
+            statement = statement.where(Property.longitude <= max_lng)
+
+        statement = statement.order_by(Property.guest_favorite.desc(), Property.created_at.desc())
         result = await db.execute(statement)
         return list(result.scalars().all())
 
