@@ -111,6 +111,22 @@ export type ReviewableBooking = {
 };
 
 export const reviewApi = {
+  list: (propertyId: number) =>
+    request<{
+      average_rating: number;
+      review_count: number;
+      reviews: Array<{
+        id: number;
+        property_id: number;
+        booking_id: number;
+        guest_id: number;
+        rating: number;
+        comment: string;
+        created_at: string;
+        guest_name?: string | null;
+      }>;
+    }>('/reviews/properties/' + propertyId),
+
   reviewableBookings: () =>
     request<ReviewableBooking[]>('/bookings/reviewable', {
       headers: authHeaders(),
