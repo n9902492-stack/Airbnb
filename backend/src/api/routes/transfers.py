@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_user
@@ -86,7 +87,7 @@ async def add_transfer_to_booking(
     if booking.property_id != payload.property_id:
         raise HTTPException(status_code=400, detail="Property does not match booking")
 
-    existing = await db.get(TransferRequest, payload.booking_id)
+    existing = await db.scalar(select(TransferRequest.id).where(TransferRequest.booking_id == payload.booking_id))
     if existing:
         raise HTTPException(status_code=409, detail="This booking already has a transfer request")
 
