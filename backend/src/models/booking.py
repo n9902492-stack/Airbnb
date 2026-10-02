@@ -40,3 +40,4 @@ class Booking(Base):
 
     property = relationship("Property", back_populates="bookings")
     guest = relationship("User", back_populates="bookings")
+    review = relationship("Review", back_populates="booking", uselist=False, cascade="all, delete-orphan")
