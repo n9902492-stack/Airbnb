@@ -1,3 +1,4 @@
+from src.models.booking_participant import BookingParticipant
 from src.models.booking_change_payment import BookingChangePayment
 from src.models.booking_change import BookingChangeRequest
 from src.models.promotion_redemption import PromotionRedemption
@@ -35,6 +36,7 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "BookingParticipant",
     "BookingChangePayment",
     "BookingChangeRequest",
     "PromotionRedemption",
