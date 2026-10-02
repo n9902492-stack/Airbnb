@@ -33,6 +33,8 @@ export const properties: Property[] = [
     description: 'A warm, design-led mountain home with floor-to-ceiling valley views, a fireplace and a quiet outdoor deck.',
     amenities: ['Mountain view', 'Fast Wi-Fi', 'Indoor fireplace', 'Kitchen', 'Free parking', 'Heating'],
     highlights: ['Self check-in', 'Valley-facing deck', 'Dedicated workspace'],
+    latitude: 32.2396,
+    longitude: 77.1887,
     customerReviews: [
       { id: 1, guestName: 'Riya Mehta', rating: 5, date: 'September 2026', comment: 'The photos matched the house very well. The bedroom was spotless, the bathroom was modern, and the valley view was even better in person.' },
       { id: 2, guestName: 'Arjun Kapoor', rating: 5, date: 'August 2026', comment: 'Very peaceful stay. The kitchen was properly equipped and the host shared clear check-in instructions. Great for a family trip.' },
@@ -71,6 +73,8 @@ export const properties: Property[] = [
     description: 'A private tropical courtyard home made for slow mornings, long pool days and relaxed group stays.',
     amenities: ['Private pool', 'Breakfast', 'Air conditioning', 'Kitchen', 'Housekeeping', 'Garden'],
     highlights: ['Private chef available', 'Quiet neighbourhood', 'Poolside dining'],
+    latitude: 15.5910,
+    longitude: 73.7669,
     customerReviews: [
       { id: 1, guestName: 'Kabir Joshi', rating: 5, date: 'September 2026', comment: 'Excellent villa for a group. Every bedroom had privacy, bathrooms were very clean, and the pool area looked exactly like the listing.' },
       { id: 2, guestName: 'Ananya Rao', rating: 5, date: 'August 2026', comment: 'We loved the courtyard and breakfast. The owner was responsive and the home had enough space for our whole family.' },
@@ -108,6 +112,8 @@ export const properties: Property[] = [
     description: 'An art-filled loft near Jaipur’s old city with handcrafted furniture and a calm rooftop breakfast corner.',
     amenities: ['Rooftop', 'Wi-Fi', 'Air conditioning', 'Breakfast', 'Workspace', 'Washer'],
     highlights: ['Walkable old city', 'Local design', 'Hosted breakfast'],
+    latitude: 26.9239,
+    longitude: 75.8267,
     customerReviews: [
       { id: 1, guestName: 'Ishita Verma', rating: 5, date: 'September 2026', comment: 'Perfect location for exploring Jaipur. The room felt thoughtfully designed and the listing gave an accurate picture of the space.' },
       { id: 2, guestName: 'Dev Malhotra', rating: 4, date: 'August 2026', comment: 'Compact but very comfortable. Great for two people. Rooftop breakfast was a highlight.' },
