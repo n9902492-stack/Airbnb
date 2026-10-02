@@ -1,3 +1,16 @@
+export type PropertyPhoto = {
+  label: 'Exterior' | 'Living room' | 'Bedroom' | 'Bathroom' | 'Kitchen' | 'View';
+  url: string;
+};
+
+export type CustomerReview = {
+  id: number;
+  guestName: string;
+  rating: number;
+  date: string;
+  comment: string;
+};
+
 export type Property = {
   id: number;
   title: string;
@@ -12,9 +25,11 @@ export type Property = {
   baths: number;
   image: string;
   images: string[];
+  photos: PropertyPhoto[];
   category: string;
   description: string;
   host: string;
   amenities: string[];
   highlights: string[];
+  customerReviews: CustomerReview[];
 };
