@@ -15,6 +15,7 @@ import HostProfilePage from './pages/HostProfilePage';
 import AddOfferingPage from './pages/AddOfferingPage';
 import WishlistPlannerPage from './pages/WishlistPlannerPage';
 import TrustCenterPage from './pages/TrustCenterPage';
+import EditOfferingPage from './pages/EditOfferingPage';
 
 export default function App() {
   return (
@@ -83,6 +84,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={['owner', 'super_admin']}>
             <EditPropertyPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/owner/offerings/:offeringId/edit"
+        element={
+          <ProtectedRoute roles={['owner', 'super_admin']}>
+            <EditOfferingPage />
           </ProtectedRoute>
         }
       />
