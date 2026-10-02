@@ -16,6 +16,7 @@ from src.models.special_offer import SpecialOffer
 from src.models.user import User, UserRole
 from src.models.wishlist_collection import WishlistCollection, WishlistCollectionMember
 from src.models.wishlist_collection_item import WishlistCollectionItem
+from src.models.wishlist_vote import WishlistVote
 from src.services.notification_service import NotificationService
 
 
@@ -30,10 +31,29 @@ class CoHostCreate(BaseModel):
 
 class CollectionCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    proposed_start_date: str | None = None
+    proposed_end_date: str | None = None
+    guest_count: int | None = Field(default=None, ge=1, le=50)
+
+
+class CollectionUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    proposed_start_date: str | None = None
+    proposed_end_date: str | None = None
+    guest_count: int | None = Field(default=None, ge=1, le=50)
+
+
+class CollectionItemNote(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class CollectionVote(BaseModel):
+    value: int = Field(ge=-1, le=1)
 
 
 class CollectionItemCreate(BaseModel):
     property_id: int
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class SpecialOfferCreate(BaseModel):
@@ -148,10 +168,14 @@ async def create_collection(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from datetime import date
     collection = WishlistCollection(
         owner_user_id=current_user.id,
         name=payload.name,
         share_token=secrets.token_urlsafe(24),
+        proposed_start_date=date.fromisoformat(payload.proposed_start_date) if payload.proposed_start_date else None,
+        proposed_end_date=date.fromisoformat(payload.proposed_end_date) if payload.proposed_end_date else None,
+        guest_count=payload.guest_count,
     )
     db.add(collection)
     await db.commit()
@@ -183,6 +207,9 @@ async def list_collections(
             "name": x.name,
             "share_token": x.share_token if x.owner_user_id == current_user.id else None,
             "owner_user_id": x.owner_user_id,
+            "proposed_start_date": x.proposed_start_date,
+            "proposed_end_date": x.proposed_end_date,
+            "guest_count": x.guest_count,
         }
         for x in result.scalars().all()
     ]
@@ -223,6 +250,7 @@ async def add_collection_item(
             collection_id=collection_id,
             property_id=payload.property_id,
             added_by_user_id=current_user.id,
+            note=payload.note,
         ))
         await db.commit()
     return {"ok": True}
@@ -367,3 +395,130 @@ async def accept_special_offer(
     await db.commit()
     await db.refresh(booking)
     return {"booking_id": booking.id, "status": booking.status.value}
+
+
+async def _collection_access(
+    db: AsyncSession,
+    collection_id: int,
+    user_id: int,
+) -> WishlistCollection:
+    collection = await db.get(WishlistCollection, collection_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail="Wishlist not found")
+    if collection.owner_user_id == user_id:
+        return collection
+    member = await db.scalar(
+        select(WishlistCollectionMember).where(
+            WishlistCollectionMember.collection_id == collection_id,
+            WishlistCollectionMember.user_id == user_id,
+        )
+    )
+    if not member:
+        raise HTTPException(status_code=403, detail="No access to this wishlist")
+    return collection
+
+
+@router.patch("/wishlists/{collection_id}")
+async def update_collection(
+    collection_id: int,
+    payload: CollectionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from datetime import date
+    collection = await _collection_access(db, collection_id, current_user.id)
+    data = payload.model_dump(exclude_unset=True)
+    if "proposed_start_date" in data:
+        collection.proposed_start_date = date.fromisoformat(data.pop("proposed_start_date")) if data["proposed_start_date"] else None
+    if "proposed_end_date" in data:
+        collection.proposed_end_date = date.fromisoformat(data.pop("proposed_end_date")) if data["proposed_end_date"] else None
+    for key, value in data.items():
+        setattr(collection, key, value)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.get("/wishlists/{collection_id}")
+async def collection_detail(
+    collection_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    collection = await _collection_access(db, collection_id, current_user.id)
+    result = await db.execute(
+        select(WishlistCollectionItem, Property)
+        .join(Property, Property.id == WishlistCollectionItem.property_id)
+        .where(WishlistCollectionItem.collection_id == collection_id)
+        .order_by(WishlistCollectionItem.created_at.desc())
+    )
+    items = []
+    for item, property_obj in result.all():
+        votes = await db.execute(
+            select(WishlistVote.value).where(WishlistVote.item_id == item.id)
+        )
+        values = list(votes.scalars().all())
+        items.append({
+            "id": item.id,
+            "property_id": property_obj.id,
+            "title": property_obj.title,
+            "city": property_obj.city,
+            "state": property_obj.state,
+            "image_urls": property_obj.image_urls,
+            "price_per_night": float(property_obj.price_per_night),
+            "note": item.note,
+            "vote_score": sum(values),
+        })
+    return {
+        "id": collection.id,
+        "name": collection.name,
+        "proposed_start_date": collection.proposed_start_date,
+        "proposed_end_date": collection.proposed_end_date,
+        "guest_count": collection.guest_count,
+        "items": items,
+    }
+
+
+@router.patch("/wishlists/{collection_id}/items/{item_id}/note")
+async def update_collection_note(
+    collection_id: int,
+    item_id: int,
+    payload: CollectionItemNote,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await _collection_access(db, collection_id, current_user.id)
+    item = await db.get(WishlistCollectionItem, item_id)
+    if not item or item.collection_id != collection_id:
+        raise HTTPException(status_code=404, detail="Wishlist item not found")
+    item.note = payload.note
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/wishlists/{collection_id}/items/{item_id}/vote")
+async def vote_collection_item(
+    collection_id: int,
+    item_id: int,
+    payload: CollectionVote,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await _collection_access(db, collection_id, current_user.id)
+    item = await db.get(WishlistCollectionItem, item_id)
+    if not item or item.collection_id != collection_id:
+        raise HTTPException(status_code=404, detail="Wishlist item not found")
+    vote = await db.scalar(
+        select(WishlistVote).where(
+            WishlistVote.item_id == item_id,
+            WishlistVote.user_id == current_user.id,
+        )
+    )
+    if payload.value == 0:
+        if vote:
+            await db.delete(vote)
+    elif vote:
+        vote.value = payload.value
+    else:
+        db.add(WishlistVote(item_id=item_id, user_id=current_user.id, value=payload.value))
+    await db.commit()
+    return {"ok": True}
