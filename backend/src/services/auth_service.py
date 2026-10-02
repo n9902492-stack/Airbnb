@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security import hash_password, verify_password
-from src.models.user import User
+from src.models.user import User, UserRole
 from src.schemas.user import UserCreate
 
 
@@ -14,10 +14,12 @@ class AuthService:
 
     @classmethod
     async def register(cls, db: AsyncSession, payload: UserCreate) -> User:
+        role = UserRole.OWNER if payload.account_type == "owner" else UserRole.USER
         user = User(
             full_name=payload.full_name.strip(),
             email=payload.email.lower(),
             password_hash=hash_password(payload.password),
+            role=role,
             is_active=False,
             is_verified=False,
         )
@@ -49,10 +51,6 @@ class AuthService:
         return user
 
     @staticmethod
-    async def change_password(
-        db: AsyncSession,
-        user: User,
-        new_password: str,
-    ) -> None:
+    async def change_password(db: AsyncSession, user: User, new_password: str) -> None:
         user.password_hash = hash_password(new_password)
         await db.commit()
