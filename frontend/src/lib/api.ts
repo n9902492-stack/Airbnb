@@ -365,6 +365,21 @@ export type PendingProperty = {
 };
 
 export const adminApi = {
+  auditLogs: (limit = 50) =>
+    request<Array<{
+      id: number;
+      actor_user_id?: number | null;
+      action: string;
+      entity_type?: string | null;
+      entity_id?: string | null;
+      request_id?: string | null;
+      ip_address?: string | null;
+      metadata: Record<string, unknown>;
+      created_at: string;
+    }>>('/super-admin/audit-logs?limit=' + limit, {
+      headers: authHeaders(),
+    }),
+
   overview: () =>
     request<{ users: number; owners: number; listings: number; bookings: number }>('/super-admin/overview', {
       headers: authHeaders(),
