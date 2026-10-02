@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     s3_secret_key: str = ""
     cdn_base_url: str = ""
 
+    gst_enabled: bool = False
     gst_rate_percent: float = 18.0
     sentry_dsn: str = ""
 
