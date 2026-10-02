@@ -76,3 +76,4 @@ class TransferRequest(Base):
     )
 
     booking = relationship("Booking", back_populates="transfer")
+    property = relationship("Property", back_populates="transfer_requests")
