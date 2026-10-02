@@ -35,3 +35,4 @@ class User(Base):
     reviews = relationship("Review", back_populates="guest", cascade="all, delete-orphan")
     wishlist_items = relationship("WishlistItem", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    payout_account = relationship("OwnerPayoutAccount", uselist=False, cascade="all, delete-orphan")
