@@ -52,7 +52,7 @@ class PayoutService:
     async def apply_refund(
         db: AsyncSession,
         booking_id: int,
-        refund_amount: Decimal,
+        refund_percent: int,
     ) -> None:
         payout = await db.scalar(
             select(OwnerPayout).where(OwnerPayout.booking_id == booking_id)
@@ -60,14 +60,30 @@ class PayoutService:
         if not payout:
             return
 
-        payout.refund_adjustment = refund_amount
-        if payout.status in {PayoutStatus.PENDING, PayoutStatus.READY}:
-            payout.owner_amount = max(
-                Decimal("0"),
-                payout.owner_amount - refund_amount,
-            )
-            if payout.owner_amount == 0:
-                payout.status = PayoutStatus.CANCELLED
+        percent = Decimal(refund_percent) / Decimal("100")
+        refunded_owner_gross = (payout.gross_amount * percent).quantize(Decimal("0.01"))
+        remaining_gross = max(
+            Decimal("0"),
+            payout.gross_amount - refunded_owner_gross,
+        )
+        commission = (
+            remaining_gross
+            * Decimal(str(settings.platform_commission_percent))
+            / Decimal("100")
+        ).quantize(Decimal("0.01"))
+
+        payout.refund_adjustment = refunded_owner_gross
+        payout.platform_commission = commission
+        payout.owner_amount = max(
+            Decimal("0"),
+            remaining_gross - commission,
+        ).quantize(Decimal("0.01"))
+
+        if payout.owner_amount == 0 and payout.status in {
+            PayoutStatus.PENDING,
+            PayoutStatus.READY,
+        }:
+            payout.status = PayoutStatus.CANCELLED
 
         await db.commit()
 
