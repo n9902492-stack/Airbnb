@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
+    razorpay_route_enabled: bool = False
 
     cancellation_full_refund_hours: int = 48
     cancellation_partial_refund_hours: int = 24
