@@ -15,6 +15,7 @@ from src.models.user import User
 from src.schemas.payment import CheckoutPreview, PaymentRead, PaymentSession, RazorpayVerifyRequest
 from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.payment_service import PaymentService
+from src.services.payout_automation_service import PayoutAutomationService
 from src.services.razorpay_service import RazorpayService
 
 
@@ -189,5 +190,18 @@ async def razorpay_webhook(
                     booking,
                     provider_payment_id=provider_payment_id,
                 )
+
+    if event_name in {"settlement.processed", "settlement.failed"}:
+        settlement_entity = (
+            event.get("payload", {})
+            .get("settlement", {})
+            .get("entity", {})
+        )
+        settlement_id = settlement_entity.get("id")
+        if settlement_id:
+            await PayoutAutomationService.reconcile_settlement(
+                db,
+                settlement_id,
+            )
 
     return {"ok": True}
