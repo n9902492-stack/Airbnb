@@ -852,6 +852,35 @@ export const offeringApi = {
       headers: authHeaders(),
     }),
 
+  hostBookings: () =>
+    request<Array<{
+      id:number;
+      offering_id:number;
+      title:string;
+      kind:string;
+      guest_id:number;
+      guest_name:string;
+      scheduled_at:string;
+      guest_count:number;
+      total_amount:number;
+      status:string;
+      payment_status:string;
+    }>>('/offerings/host/bookings', {
+      headers: authHeaders(),
+    }),
+
+  acceptRequest: (bookingId: number) =>
+    request('/offerings/bookings/' + bookingId + '/accept', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  declineRequest: (bookingId: number) =>
+    request('/offerings/bookings/' + bookingId + '/decline', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
   book: (id: number, payload: { scheduled_at: string; guest_count: number }) =>
     request<{
       id: number;
