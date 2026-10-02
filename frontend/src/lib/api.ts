@@ -2,11 +2,37 @@ import type { CurrentUser } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function refreshAccessToken(): Promise<string | null> {
+  const response = await fetch(API_BASE + '/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!response.ok) return null;
+  const data = await response.json() as { access_token: string };
+  localStorage.setItem('nestora_access_token', data.access_token);
+  return data.access_token;
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  retry = true,
+): Promise<T> {
   const response = await fetch(API_BASE + path, {
     ...options,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
   });
+
+  if (response.status === 401 && retry && path !== '/auth/refresh') {
+    const token = await refreshAccessToken();
+    if (token) {
+      const headers = new Headers(options.headers ?? {});
+      headers.set('Authorization', 'Bearer ' + token);
+      return request<T>(path, { ...options, headers }, false);
+    }
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail ?? 'Something went wrong');
   return data as T;
@@ -36,11 +62,17 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ username: email, password }),
+      credentials: 'include',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail ?? 'Unable to sign in');
     return data as { access_token: string; token_type: string };
   },
+
+  logout: () =>
+    request<{ ok: boolean }>('/auth/logout', {
+      method: 'POST',
+    }),
 
   me: () =>
     request<CurrentUser>('/auth/me', {
@@ -267,6 +299,8 @@ export type CheckoutPreview = {
   stay_subtotal: number;
   service_fee: number;
   transfer_fee: number;
+  gst_rate: number;
+  gst_amount: number;
   grand_total: number;
   currency: string;
 };
@@ -668,4 +702,21 @@ export const financeApi = {
       headers: authHeaders(),
     });
   },
+};
+
+
+export const invoiceApi = {
+  get: (bookingId: number) =>
+    request<{
+      invoice_number: string;
+      booking_id: number;
+      taxable_amount: number;
+      gst_rate: number;
+      gst_amount: number;
+      total_amount: number;
+      currency: string;
+      issued_at: string;
+    }>('/invoices/' + bookingId, {
+      headers: authHeaders(),
+    }),
 };
