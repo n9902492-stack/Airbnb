@@ -655,3 +655,213 @@ p { line-height: 1.6; color: #62716c; }
   .owner-listing-card > img { width: 100%; height: 220px; }
   .upload-preview-grid { grid-template-columns: 1fr 1fr; }
 }
+
+
+.transfer-option {
+  margin-top: 48px;
+  padding-top: 36px;
+  border-top: 1px solid #e5e7e1;
+}
+.transfer-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+.transfer-heading h2 {
+  margin: 8px 0 6px;
+}
+.transfer-heading p {
+  max-width: 650px;
+  margin: 0;
+}
+.transfer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #d9ded9;
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.transfer-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #17352d;
+}
+.transfer-body {
+  margin-top: 22px;
+  background: #fff;
+  border: 1px solid #e1e4dd;
+  border-radius: 22px;
+  padding: 22px;
+}
+.transfer-direction {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+.transfer-choice {
+  border: 1px solid #d9ded9;
+  border-radius: 14px;
+  background: #fbfbf8;
+  padding: 14px;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  color: #17352d;
+}
+.transfer-choice small {
+  color: #7a8984;
+}
+.transfer-choice.active {
+  border-color: #315f52;
+  background: #edf3ef;
+  box-shadow: 0 0 0 2px rgba(49,95,82,.08);
+}
+.transfer-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.transfer-type {
+  border: 1px solid #d9ded9;
+  background: #fff;
+  color: #17352d;
+  border-radius: 999px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.transfer-type.active {
+  background: #17352d;
+  color: #fff;
+  border-color: #17352d;
+}
+.transfer-search {
+  position: relative;
+}
+.transfer-search-box {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d9ded9;
+  border-radius: 14px;
+  padding: 8px 8px 8px 13px;
+  background: #fff;
+}
+.transfer-search-box input {
+  border: 0;
+  outline: 0;
+  min-width: 0;
+  font: inherit;
+  color: #17352d;
+}
+.transfer-search-box button {
+  border: 0;
+  background: #17352d;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-weight: 700;
+}
+.transfer-results {
+  margin-top: 8px;
+  border: 1px solid #e0e4df;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+.transfer-results button {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #eef0ec;
+  background: #fff;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  color: #17352d;
+}
+.transfer-results button:last-child {
+  border-bottom: 0;
+}
+.transfer-results span {
+  display: grid;
+  gap: 3px;
+}
+.transfer-results small {
+  color: #7d8a86;
+}
+.transfer-summary {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.transfer-summary > div {
+  background: #f5f7f3;
+  border: 1px solid #dfe5df;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+.transfer-summary small {
+  color: #7b8984;
+}
+.transfer-summary strong {
+  font: 700 21px 'Manrope';
+}
+.transfer-route-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 12px;
+  font-weight: 700;
+}
+.transfer-map,
+.transfer-map-placeholder {
+  width: 100%;
+  min-height: 330px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #dce1dc;
+}
+.transfer-map-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+  background: #f5f7f3;
+  color: #6d7c77;
+}
+.transfer-pricing-note {
+  margin: 12px 0;
+  font-size: 12px;
+}
+.transfer-skip {
+  display: block;
+  text-align: center;
+  margin-top: 9px;
+  color: #7a8984;
+}
+
+@media (max-width: 700px) {
+  .transfer-heading {
+    flex-direction: column;
+  }
+  .transfer-direction,
+  .transfer-summary {
+    grid-template-columns: 1fr;
+  }
+  .transfer-map,
+  .transfer-map-placeholder {
+    min-height: 280px;
+  }
+}
