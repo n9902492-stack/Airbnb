@@ -840,7 +840,7 @@ export const offeringApi = {
     return request<MarketplaceOffering[]>('/offerings' + (qs.toString() ? '?' + qs.toString() : ''));
   },
 
-  get: (id: number) => request<MarketplaceOffering>('/offerings/' + id),
+  get: (id: number) => request<MarketplaceOffering>('/offerings/items/' + id),
 
   create: (payload: unknown) =>
     request<MarketplaceOffering>('/offerings', {
@@ -895,7 +895,7 @@ export const offeringApi = {
       provider_order_id?: string | null;
       razorpay_key_id?: string | null;
       amount_paise?: number;
-    }>('/offerings/' + id + '/book', {
+    }>('/offerings/items/' + id + '/book', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload),
