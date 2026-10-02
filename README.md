@@ -523,3 +523,63 @@ The current migration chain is:
 06 wishlist / messages / notifications
 07 pricing / payouts / auth security
 ```
+
+
+## Automatic owner bank payouts with Razorpay Route
+
+Automatic owner payouts now use Razorpay Route Linked Accounts.
+
+Pipeline:
+
+```text
+customer Razorpay payment captured
+        ↓
+owner payout ledger created
+        ↓
+stay completes
+        ↓
+payout = READY
+        ↓
+automatic worker checks verified owner linked account
+        ↓
+POST /v1/payments/{payment_id}/transfers
+        ↓
+Razorpay Route transfer
+        ↓
+PROCESSING
+        ↓
+recipient settlement becomes settled
+        ↓
+PAID
+```
+
+Enable with:
+
+```env
+PAYMENT_PROVIDER=razorpay
+RAZORPAY_ROUTE_ENABLED=true
+RAZORPAY_ROUTE_WEBHOOK_REQUIRED=true
+RAZORPAY_KEY_ID=...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+```
+
+Owners must first be onboarded as Razorpay Route Linked Accounts. Nestora stores only the resulting `acc_...` identifier; it does not store raw owner bank credentials. Super Admin attaches the verified account to the owner:
+
+```text
+PUT /api/v1/super-admin/owners/{owner_id}/payout-account
+```
+
+Owner can check status:
+
+```text
+GET /api/v1/owner/payout-account
+```
+
+Migration:
+
+```text
+20261002_08_razorpay_route_payout_accounts.py
+```
+
+The automatic worker processes READY payouts every minute. Transfer and settlement webhooks reconcile payout status. A payout is marked PAID only after Route reports the recipient settlement as settled, not merely when the transfer is created.
