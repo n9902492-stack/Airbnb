@@ -9,6 +9,7 @@ from src.models.booking import Booking
 from src.models.message import BookingMessage
 from src.models.property import Property
 from src.models.user import User
+from src.services.notification_service import NotificationService
 
 
 router = APIRouter()
@@ -70,7 +71,7 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _authorized_booking(db, booking_id, current_user)
+    booking = await _authorized_booking(db, booking_id, current_user)
     message = BookingMessage(
         booking_id=booking_id,
         sender_id=current_user.id,
@@ -79,6 +80,22 @@ async def send_message(
     db.add(message)
     await db.commit()
     await db.refresh(message)
+
+    property_obj = await db.get(Property, booking.property_id)
+    recipient_id = (
+        property_obj.owner_id
+        if current_user.id == booking.guest_id and property_obj
+        else booking.guest_id
+    )
+    if recipient_id and recipient_id != current_user.id:
+        await NotificationService.create(
+            db,
+            recipient_id,
+            "new_message",
+            "New booking message",
+            f"{current_user.full_name} sent a message about booking #{booking.id}.",
+        )
+
     return {
         "id": message.id,
         "booking_id": message.booking_id,
