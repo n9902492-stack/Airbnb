@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Home, Plus, Star, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { authStore } from '../lib/auth';
-import { earningsApi, offeringApi, ownerApi, ownerManagementApi, type MarketplaceOffering, type OwnerEarnings, type OwnerProperty } from '../lib/api';
+import { bookingChangeApi, earningsApi, offeringApi, ownerApi, ownerManagementApi, type MarketplaceOffering, type OwnerEarnings, type OwnerProperty } from '../lib/api';
 import NotificationsPanel from '../components/NotificationsPanel';
 
 const examples: OwnerProperty[] = [
@@ -36,6 +36,7 @@ export default function OwnerDashboard() {
   const [payoutAccount, setPayoutAccount] = useState<{ configured:boolean; provider:string; linked_account_id?:string; status?:string }>({ configured:false, provider:'razorpay_route' });
   const [offerings, setOfferings] = useState<MarketplaceOffering[]>([]);
   const [offeringBookings, setOfferingBookings] = useState<Awaited<ReturnType<typeof offeringApi.hostBookings>>>([]);
+  const [changeRequests, setChangeRequests] = useState<Awaited<ReturnType<typeof bookingChangeApi.host>>>([]);
 
   useEffect(() => {
     Promise.all([
@@ -46,6 +47,7 @@ export default function OwnerDashboard() {
       ownerManagementApi.payoutAccount().then(setPayoutAccount).catch(() => undefined),
       offeringApi.mine().then(setOfferings).catch(() => setOfferings([])),
       offeringApi.hostBookings().then(setOfferingBookings).catch(() => setOfferingBookings([])),
+      bookingChangeApi.host().then(setChangeRequests).catch(() => setChangeRequests([])),
     ]).finally(() => setLoading(false));
   }, []);
 
