@@ -152,7 +152,7 @@ export default function OwnerDashboard() {
                   {reservations.map((reservation) => (
                     <tr key={reservation.booking_id}>
                       <td>{reservation.property_title}</td>
-                      <td>Guest #{reservation.guest_id}</td>
+                      <td>{reservation.guest_name}</td>
                       <td>{reservation.check_in} → {reservation.check_out}</td>
                       <td>{reservation.guest_count}</td>
                       <td><span className={'booking-status ' + reservation.status}>{reservation.status}</span></td>
