@@ -213,6 +213,34 @@ export const bookingApi = {
       headers: authHeaders(),
       body: JSON.stringify(payload),
     }),
+
+  myTrips: () =>
+    request<Array<{
+      id: number;
+      property_id: number;
+      property_title: string;
+      check_in: string;
+      check_out: string;
+      guest_count: number;
+      total_amount: number;
+      status: string;
+      expires_at?: string | null;
+      payment_status?: string | null;
+    }>>('/bookings/my-trips', {
+      headers: authHeaders(),
+    }),
+
+  cancel: (bookingId: number, reason = 'Guest cancelled') =>
+    request<{
+      booking_id: number;
+      status: string;
+      refund_amount: number;
+      refund_percent: number;
+      message: string;
+    }>('/bookings/' + bookingId + '/cancel?reason=' + encodeURIComponent(reason), {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
 };
 
 export type CheckoutPreview = {
@@ -232,6 +260,13 @@ export type PaymentResult = {
   status: string;
 };
 
+export type PaymentSession = PaymentResult & {
+  provider: 'razorpay' | 'manual_demo';
+  razorpay_key_id?: string | null;
+  provider_order_id?: string | null;
+  amount_paise?: number | null;
+};
+
 export const paymentApi = {
   preview: (bookingId: number) =>
     request<CheckoutPreview>('/payments/checkout/' + bookingId, {
@@ -239,9 +274,23 @@ export const paymentApi = {
     }),
 
   create: (bookingId: number) =>
-    request<PaymentResult>('/payments/checkout/' + bookingId, {
+    request<PaymentSession>('/payments/checkout/' + bookingId, {
       method: 'POST',
       headers: authHeaders(),
+    }),
+
+  verifyRazorpay: (
+    paymentId: number,
+    payload: {
+      razorpay_order_id: string;
+      razorpay_payment_id: string;
+      razorpay_signature: string;
+    },
+  ) =>
+    request<PaymentResult>('/payments/' + paymentId + '/verify-razorpay', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
     }),
 
   demoConfirm: (paymentId: number) =>
@@ -301,5 +350,20 @@ export const ownerManagementApi = {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload),
+    }),
+
+  reservations: () =>
+    request<Array<{
+      booking_id: number;
+      property_id: number;
+      property_title: string;
+      guest_id: number;
+      check_in: string;
+      check_out: string;
+      guest_count: number;
+      total_amount: number;
+      status: string;
+    }>>('/owner/reservations', {
+      headers: authHeaders(),
     }),
 };
