@@ -8,6 +8,7 @@ from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
 from src.models.property import Property, PropertyStatus
 from src.models.user import User, UserRole
+from src.services.cancellation_service import CancellationService
 
 
 router = APIRouter()
@@ -102,10 +103,25 @@ async def admin_cancel_booking(
     if booking.status in {BookingStatus.CANCELLED, BookingStatus.COMPLETED}:
         raise HTTPException(status_code=409, detail="Booking cannot be cancelled")
 
-    booking.status = BookingStatus.CANCELLED
-    booking.cancellation_reason = reason
-    await db.commit()
-    return {"booking_id": booking.id, "status": booking.status.value}
+    payment = await db.scalar(
+        select(Payment).where(Payment.booking_id == booking.id)
+    )
+    try:
+        refund_percent, refund_amount = await CancellationService.cancel(
+            db,
+            booking,
+            payment,
+            reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+    return {
+        "booking_id": booking.id,
+        "status": booking.status.value,
+        "refund_percent": refund_percent,
+        "refund_amount": refund_amount,
+    }
 
 
 @router.post("/properties/{property_id}/approve")
