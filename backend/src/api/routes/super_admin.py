@@ -7,6 +7,7 @@ from src.db.session import get_db
 from src.models.audit_log import AuditLog
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
+from src.models.offering import MarketplaceOffering
 from src.models.payout import OwnerPayout, PayoutStatus
 from src.models.payout_account import OwnerPayoutAccount
 from src.models.property import Property, PropertyStatus
@@ -207,6 +208,84 @@ async def mark_payout_paid(
     )
     return {"id": payout.id, "status": payout.status.value}
 
+
+
+
+@router.get("/offerings/pending")
+async def pending_offerings(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    result = await db.execute(
+        select(MarketplaceOffering)
+        .where(MarketplaceOffering.status == "pending")
+        .order_by(MarketplaceOffering.created_at.asc())
+    )
+    return [
+        {
+            "id": item.id,
+            "host_id": item.host_id,
+            "kind": item.kind,
+            "title": item.title,
+            "category": item.category,
+            "city": item.city,
+            "state": item.state,
+            "price": float(item.price),
+            "image_urls": item.image_urls,
+        }
+        for item in result.scalars().all()
+    ]
+
+
+@router.post("/offerings/{offering_id}/approve")
+async def approve_offering(
+    offering_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(super_admin_required),
+):
+    item = await db.get(MarketplaceOffering, offering_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Offering not found")
+    item.status = "live"
+    await db.commit()
+    await AuditService.record(
+        db,
+        "offering.approved",
+        actor_user_id=current_admin.id,
+        entity_type="marketplace_offering",
+        entity_id=item.id,
+        request_id=getattr(request.state, "request_id", None),
+        ip_address=request.client.host if request.client else None,
+        metadata={"kind": item.kind},
+    )
+    return {"id": item.id, "status": item.status}
+
+
+@router.post("/offerings/{offering_id}/reject")
+async def reject_offering(
+    offering_id: int,
+    reason: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(super_admin_required),
+):
+    item = await db.get(MarketplaceOffering, offering_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Offering not found")
+    item.status = "rejected"
+    await db.commit()
+    await AuditService.record(
+        db,
+        "offering.rejected",
+        actor_user_id=current_admin.id,
+        entity_type="marketplace_offering",
+        entity_id=item.id,
+        request_id=getattr(request.state, "request_id", None),
+        ip_address=request.client.host if request.client else None,
+        metadata={"reason": reason, "kind": item.kind},
+    )
+    return {"id": item.id, "status": item.status}
 
 @router.get("/properties/pending")
 async def pending_properties(
