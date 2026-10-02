@@ -125,3 +125,47 @@ class PayoutAutomationService:
         if updated:
             await db.commit()
         return updated
+
+
+    @staticmethod
+    async def reconcile_transfer_event(
+        db: AsyncSession,
+        transfer: dict,
+    ) -> bool:
+        transfer_id = transfer.get("id")
+        if not transfer_id:
+            return False
+
+        payout = await db.scalar(
+            select(OwnerPayout).where(
+                OwnerPayout.provider_reference == transfer_id
+            )
+        )
+        if not payout:
+            return False
+
+        status = transfer.get("status") or transfer.get("transfer_status")
+        if status == "processed":
+            payout.status = PayoutStatus.PAID
+            payout.paid_at = payout.paid_at or datetime.now(timezone.utc)
+            await NotificationService.create(
+                db,
+                payout.owner_id,
+                "payout_paid",
+                "Payout sent",
+                f"₹{payout.owner_amount} for booking #{payout.booking_id} has been transferred through Razorpay Route.",
+            )
+        elif status in {"failed", "reversed", "partially_reversed"}:
+            payout.status = PayoutStatus.FAILED
+            await NotificationService.create(
+                db,
+                payout.owner_id,
+                "payout_failed",
+                "Payout status changed",
+                f"Payout for booking #{payout.booking_id} requires platform review.",
+            )
+        else:
+            payout.status = PayoutStatus.PROCESSING
+
+        await db.commit()
+        return True
