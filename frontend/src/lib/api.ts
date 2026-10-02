@@ -960,3 +960,71 @@ export const messageToolsApi = {
       body:JSON.stringify({booking_id:bookingId,body,send_at:sendAt}),
     }),
 };
+
+
+export type BookingChangeRequest = {
+  id:number;
+  booking_id:number;
+  new_check_in:string;
+  new_check_out:string;
+  new_guest_count:number;
+  old_total_amount:number;
+  new_total_amount:number;
+  price_difference:number;
+  status:string;
+  adjustment?: {
+    id:number;
+    amount:number;
+    provider:'razorpay'|'manual_demo';
+    status:string;
+    provider_order_id?:string|null;
+    razorpay_key_id?:string|null;
+    amount_paise?:number;
+  } | null;
+};
+
+export const bookingChangeApi = {
+  create: (bookingId:number, payload:{check_in:string;check_out:string;guest_count:number}) =>
+    request<{id:number;status:string;new_total_amount:number;price_difference:number}>(
+      '/booking-changes/' + bookingId,
+      { method:'POST', headers:authHeaders(), body:JSON.stringify(payload) },
+    ),
+
+  mine: () =>
+    request<BookingChangeRequest[]>('/booking-changes/mine/requests', {
+      headers:authHeaders(),
+    }),
+
+  host: () =>
+    request<Array<{
+      id:number; booking_id:number; property_title:string; guest_name:string;
+      new_check_in:string; new_check_out:string; new_guest_count:number; price_difference:number;
+    }>>('/booking-changes/host/requests', { headers:authHeaders() }),
+
+  accept: (id:number) =>
+    request<{
+      id:number;status:string;adjustment_payment_id?:number;amount?:number;
+      provider?:'razorpay'|'manual_demo';provider_order_id?:string|null;
+      razorpay_key_id?:string|null;amount_paise?:number;
+    }>('/booking-changes/' + id + '/accept', {
+      method:'POST', headers:authHeaders(),
+    }),
+
+  decline: (id:number) =>
+    request('/booking-changes/' + id + '/decline', {
+      method:'POST', headers:authHeaders(),
+    }),
+
+  confirmDemoAdjustment: (id:number) =>
+    request('/booking-changes/adjustments/' + id + '/demo-confirm', {
+      method:'POST', headers:authHeaders(),
+    }),
+
+  verifyAdjustment: (
+    id:number,
+    payload:{razorpay_order_id:string;razorpay_payment_id:string;razorpay_signature:string},
+  ) =>
+    request('/booking-changes/adjustments/' + id + '/verify-razorpay', {
+      method:'POST', headers:authHeaders(), body:JSON.stringify(payload),
+    }),
+};
