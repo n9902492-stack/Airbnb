@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Building2, Flag, LayoutDashboard, Shield, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { adminApi, type PendingProperty } from '../lib/api';
+import { adminApi, adminBookingApi, type AdminBooking, type PendingProperty } from '../lib/api';
 
 export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState({ users: 0, owners: 0, listings: 0, bookings: 0 });
   const [pending, setPending] = useState<PendingProperty[]>([]);
   const [reason, setReason] = useState<Record<number, string>>({});
   const [message, setMessage] = useState('');
+  const [bookings, setBookings] = useState<AdminBooking[]>([]);
 
   async function refresh() {
-    const [summary, items] = await Promise.all([
+    const [summary, items, bookingItems] = await Promise.all([
       adminApi.overview(),
       adminApi.pendingProperties(),
+      adminBookingApi.list(),
     ]);
     setOverview(summary);
     setPending(items);
+    setBookings(bookingItems);
   }
 
   useEffect(() => {
@@ -115,6 +118,28 @@ export default function SuperAdminDashboard() {
               })}
             </div>
           )}
+        </div>
+
+        <div className="panel admin-bookings-panel">
+          <div className="section-head"><div><h2>Booking controls</h2><p>Recent reservations, payment state and platform cancellation control.</p></div></div>
+          <div className="reservation-table-wrap">
+            <table>
+              <thead><tr><th>Property</th><th>Guest</th><th>Dates</th><th>Booking</th><th>Payment</th><th>Total</th><th></th></tr></thead>
+              <tbody>
+                {bookings.map((booking) => (
+                  <tr key={booking.booking_id}>
+                    <td>{booking.property_title}</td>
+                    <td>{booking.guest_name}</td>
+                    <td>{booking.check_in} → {booking.check_out}</td>
+                    <td><span className={'booking-status ' + booking.status}>{booking.status}</span></td>
+                    <td>{booking.payment_status ?? 'not started'}{booking.refund_amount ? ' · refund ₹' + booking.refund_amount : ''}</td>
+                    <td>₹{Number(booking.total_amount).toLocaleString('en-IN')}</td>
+                    <td>{['pending','confirmed'].includes(booking.status) && <button className="ghost dark" onClick={async()=>{await adminBookingApi.cancel(booking.booking_id); await refresh();}}>Cancel</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
