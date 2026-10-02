@@ -1,3 +1,9 @@
+from src.models.wishlist_collection import WishlistCollection, WishlistCollectionMember
+from src.models.special_offer import SpecialOffer
+from src.models.offering_booking import OfferingBooking
+from src.models.offering import MarketplaceOffering
+from src.models.host_profile import HostProfile
+from src.models.cohost import PropertyCoHost
 from src.models.audit_log import AuditLog
 from src.models.auth_event import AuthEvent
 from src.models.availability_block import AvailabilityBlock
@@ -18,6 +24,13 @@ from src.models.verification_code import VerificationCode
 from src.models.wishlist import WishlistItem
 
 __all__ = [
+    "WishlistCollectionMember",
+    "WishlistCollection",
+    "SpecialOffer",
+    "OfferingBooking",
+    "MarketplaceOffering",
+    "HostProfile",
+    "PropertyCoHost",
     "AuditLog",
     "AuthEvent",
     "AuthSession",
