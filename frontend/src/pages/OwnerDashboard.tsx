@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Home, Plus, Star, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { authStore } from '../lib/auth';
-import { earningsApi, ownerApi, ownerManagementApi, type OwnerEarnings, type OwnerProperty } from '../lib/api';
+import { earningsApi, offeringApi, ownerApi, ownerManagementApi, type MarketplaceOffering, type OwnerEarnings, type OwnerProperty } from '../lib/api';
 import NotificationsPanel from '../components/NotificationsPanel';
 
 const examples: OwnerProperty[] = [
@@ -34,6 +34,8 @@ export default function OwnerDashboard() {
   const [earnings, setEarnings] = useState<OwnerEarnings>({ gross: 0, refunded: 0, net: 0, transactions: [] });
   const [payouts, setPayouts] = useState<{ pending: number; paid: number; commission: number; payouts: Array<{ id:number; booking_id:number; owner_amount:number; status:string }> }>({ pending: 0, paid: 0, commission: 0, payouts: [] });
   const [payoutAccount, setPayoutAccount] = useState<{ configured:boolean; provider:string; linked_account_id?:string; status?:string }>({ configured:false, provider:'razorpay_route' });
+  const [offerings, setOfferings] = useState<MarketplaceOffering[]>([]);
+  const [offeringBookings, setOfferingBookings] = useState<Awaited<ReturnType<typeof offeringApi.hostBookings>>>([]);
 
   useEffect(() => {
     Promise.all([
@@ -42,6 +44,8 @@ export default function OwnerDashboard() {
       earningsApi.owner().then(setEarnings).catch(() => undefined),
       ownerManagementApi.payouts().then(setPayouts).catch(() => undefined),
       ownerManagementApi.payoutAccount().then(setPayoutAccount).catch(() => undefined),
+      offeringApi.mine().then(setOfferings).catch(() => setOfferings([])),
+      offeringApi.hostBookings().then(setOfferingBookings).catch(() => setOfferingBookings([])),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -76,7 +80,10 @@ export default function OwnerDashboard() {
             <h1>Good morning, {user?.full_name ?? 'Owner'}</h1>
             <p>Manage listing quality, moderation status, pricing and guest trust from one place.</p>
           </div>
-          <Link to="/owner/properties/new" className="primary inline"><Plus />Add property</Link>
+          <div className="dash-actions">
+            <Link to="/owner/properties/new" className="primary inline"><Plus />Add property</Link>
+            <Link to="/owner/offerings/new" className="ghost dark"><Plus />Add service / experience</Link>
+          </div>
         </div>
 
         <div className="stats">
@@ -162,8 +169,77 @@ export default function OwnerDashboard() {
                       <td>{reservation.guest_name}</td>
                       <td>{reservation.check_in} → {reservation.check_out}</td>
                       <td>{reservation.guest_count}</td>
-                      <td><span className={'booking-status ' + reservation.status}>{reservation.status}</span></td>
+                      <td>
+                        <span className={'booking-status ' + reservation.status}>{reservation.status}</span>
+                        {reservation.status === 'requested' && (
+                          <div className="table-request-actions">
+                            <button className="primary inline" onClick={async()=>{await ownerManagementApi.acceptBookingRequest(reservation.booking_id); window.location.reload();}}>Accept</button>
+                            <button className="ghost dark" onClick={async()=>{await ownerManagementApi.declineBookingRequest(reservation.booking_id); window.location.reload();}}>Decline</button>
+                          </div>
+                        )}
+                      </td>
                       <td>₹{Number(reservation.total_amount).toLocaleString('en-IN')}<br/><Link className="table-link" to={'/messages/' + reservation.booking_id}>Message guest</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+
+        <div className="panel">
+          <div className="section-head">
+            <div><h2>Services & experiences</h2><p>Host-led inventory uses the same moderation and request/instant-book model.</p></div>
+            <Link className="ghost dark" to="/owner/offerings/new">Create new</Link>
+          </div>
+          {offerings.length === 0 ? <p>No services or experiences yet.</p> : (
+            <div className="owner-listing-grid">
+              {offerings.map((item) => {
+                const raw = item.image_urls?.[0];
+                const image = raw ? (raw.startsWith('/uploads') ? 'http://localhost:8000' + raw : raw) : 'https://images.unsplash.com/photo-1528715471579-d1bcf0ba5e83?auto=format&fit=crop&w=500&q=80';
+                return (
+                  <article className="owner-listing-card" key={'offering-' + item.id}>
+                    <img src={image} alt={item.title}/>
+                    <div>
+                      <div className="owner-listing-title">
+                        <div><strong>{item.title}</strong><small>{item.kind} · {item.city}, {item.state}</small></div>
+                        <span className={'listing-status ' + item.status}>{item.status}</span>
+                      </div>
+                      <div className="owner-listing-meta">
+                        <span>₹{Number(item.price).toLocaleString('en-IN')} / {item.pricing_unit.replace('_',' ')}</span>
+                        <span>{item.duration_minutes} min</span>
+                        <span>{item.instant_book ? 'Instant book' : 'Request to book'}</span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Service & experience reservations</h2><p>Accept or decline host-approval requests here.</p></div></div>
+          {offeringBookings.length === 0 ? <p>No reservations yet.</p> : (
+            <div className="reservation-table-wrap">
+              <table>
+                <thead><tr><th>Offering</th><th>Guest</th><th>When</th><th>Status</th><th>Payment</th><th>Total</th><th></th></tr></thead>
+                <tbody>
+                  {offeringBookings.map((booking)=>(
+                    <tr key={'ob-' + booking.id}>
+                      <td>{booking.title}<br/><small>{booking.kind}</small></td>
+                      <td>{booking.guest_name}</td>
+                      <td>{new Date(booking.scheduled_at).toLocaleString('en-IN')}</td>
+                      <td><span className={'booking-status ' + booking.status}>{booking.status}</span></td>
+                      <td>{booking.payment_status}</td>
+                      <td>₹{Number(booking.total_amount).toLocaleString('en-IN')}</td>
+                      <td>{booking.status === 'requested' && (
+                        <div className="moderation-actions">
+                          <button className="primary inline" onClick={async()=>{await offeringApi.acceptRequest(booking.id); window.location.reload();}}>Accept</button>
+                          <button className="ghost dark" onClick={async()=>{await offeringApi.declineRequest(booking.id); window.location.reload();}}>Decline</button>
+                        </div>
+                      )}</td>
                     </tr>
                   ))}
                 </tbody>
