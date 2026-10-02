@@ -36,6 +36,7 @@ class PropertyBase(BaseModel):
 
     check_in_time: str = "14:00"
     check_out_time: str = "11:00"
+    booking_mode: str = Field(default="instant", pattern="^(instant|request)$")
 
 
 class PropertyCreate(PropertyBase):
@@ -68,6 +69,7 @@ class PropertyUpdate(BaseModel):
     image_urls: list[str] | None = None
     check_in_time: str | None = None
     check_out_time: str | None = None
+    booking_mode: str | None = Field(default=None, pattern="^(instant|request)$")
 
 
 class PropertyRead(PropertyBase):
@@ -75,5 +77,6 @@ class PropertyRead(PropertyBase):
     owner_id: int
     status: PropertyStatus
     rejection_reason: str | None = None
+    guest_favorite: bool = False
 
     model_config = ConfigDict(from_attributes=True)
