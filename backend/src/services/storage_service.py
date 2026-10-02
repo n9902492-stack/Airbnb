@@ -1,13 +1,17 @@
+import asyncio
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
+from PIL import Image
 
 from src.core.config import settings
 
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+Image.MAX_IMAGE_PIXELS = 40_000_000
 UPLOAD_ROOT = Path("uploads/properties")
 
 
@@ -21,6 +25,21 @@ class StorageService:
         if len(content) > MAX_IMAGE_BYTES:
             raise ValueError("Image must be 8 MB or smaller")
 
+        try:
+            with Image.open(BytesIO(content)) as image:
+                image.verify()
+                detected = image.format
+        except Exception as exc:
+            raise ValueError("Uploaded file is not a valid image") from exc
+
+        expected = {
+            "image/jpeg": "JPEG",
+            "image/png": "PNG",
+            "image/webp": "WEBP",
+        }[file.content_type]
+        if detected != expected:
+            raise ValueError("Image content does not match its file type")
+
         suffix = {
             "image/jpeg": ".jpg",
             "image/png": ".png",
@@ -31,20 +50,23 @@ class StorageService:
         if settings.storage_provider == "s3":
             import boto3
 
-            client = boto3.client(
-                "s3",
-                endpoint_url=settings.s3_endpoint_url or None,
-                region_name=settings.s3_region or None,
-                aws_access_key_id=settings.s3_access_key or None,
-                aws_secret_access_key=settings.s3_secret_key or None,
-            )
-            client.put_object(
-                Bucket=settings.s3_bucket,
-                Key=key,
-                Body=content,
-                ContentType=file.content_type,
-                CacheControl="public,max-age=31536000,immutable",
-            )
+            def upload() -> None:
+                client = boto3.client(
+                    "s3",
+                    endpoint_url=settings.s3_endpoint_url or None,
+                    region_name=settings.s3_region or None,
+                    aws_access_key_id=settings.s3_access_key or None,
+                    aws_secret_access_key=settings.s3_secret_key or None,
+                )
+                client.put_object(
+                    Bucket=settings.s3_bucket,
+                    Key=key,
+                    Body=content,
+                    ContentType=file.content_type,
+                    CacheControl="public,max-age=31536000,immutable",
+                )
+
+            await asyncio.to_thread(upload)
             base = settings.cdn_base_url.rstrip("/") if settings.cdn_base_url else (
                 f"{settings.s3_endpoint_url.rstrip('/')}/{settings.s3_bucket}"
                 if settings.s3_endpoint_url
@@ -54,5 +76,5 @@ class StorageService:
 
         destination = UPLOAD_ROOT / key.removeprefix("properties/")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(content)
+        await asyncio.to_thread(destination.write_bytes, content)
         return f"/uploads/{key}"
