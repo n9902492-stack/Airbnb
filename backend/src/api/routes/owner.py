@@ -211,37 +211,28 @@ async def owner_earnings(
     current_user: User = Depends(owner_required),
 ):
     result = await db.execute(
-        select(Payment, Booking, Property)
-        .join(Booking, Payment.booking_id == Booking.id)
-        .join(Property, Booking.property_id == Property.id)
-        .where(
-            Property.owner_id == current_user.id,
-            Payment.status.in_([PaymentStatus.PAID, PaymentStatus.REFUNDED]),
-        )
-        .order_by(Payment.created_at.desc())
+        select(OwnerPayout)
+        .where(OwnerPayout.owner_id == current_user.id)
+        .order_by(OwnerPayout.created_at.desc())
     )
-
-    items = []
-    gross = 0.0
-    refunded = 0.0
-    for payment, booking, property_obj in result.all():
-        gross += float(payment.amount)
-        refunded += float(payment.refund_amount or 0)
-        items.append({
-            "booking_id": booking.id,
-            "property_title": property_obj.title,
-            "amount": float(payment.amount),
-            "refund_amount": float(payment.refund_amount or 0),
-            "net_amount": float(payment.amount - (payment.refund_amount or 0)),
-            "status": payment.status.value,
-            "created_at": payment.created_at,
-        })
+    payouts = list(result.scalars().all())
 
     return {
-        "gross": gross,
-        "refunded": refunded,
-        "net": gross - refunded,
-        "transactions": items,
+        "gross": sum(float(item.gross_amount) for item in payouts),
+        "refunded": sum(float(item.refund_adjustment) for item in payouts),
+        "net": sum(float(item.owner_amount) for item in payouts),
+        "transactions": [
+            {
+                "booking_id": item.booking_id,
+                "property_title": "",
+                "amount": float(item.gross_amount),
+                "refund_amount": float(item.refund_adjustment),
+                "net_amount": float(item.owner_amount),
+                "status": item.status.value,
+                "created_at": item.created_at,
+            }
+            for item in payouts
+        ],
     }
 
 
