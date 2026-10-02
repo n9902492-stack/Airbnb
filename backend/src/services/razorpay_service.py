@@ -30,7 +30,6 @@ class RazorpayService:
                     "amount": amount_paise,
                     "currency": "INR",
                     "receipt": receipt,
-                    "payment_capture": 1,
                 },
             )
             response.raise_for_status()
