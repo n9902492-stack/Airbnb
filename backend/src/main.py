@@ -4,9 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.api.router import api_router
 from src.core.config import settings
+from src.core.security_headers import SecurityHeadersMiddleware
 from src.services.booking_expiry_worker import booking_expiry_loop
 
 
@@ -23,12 +25,28 @@ async def lifespan(_: FastAPI):
             pass
 
 
+if settings.app_env == "production":
+    if settings.secret_key == "change-this-in-your-local-env" or len(settings.secret_key) < 32:
+        raise RuntimeError("Production SECRET_KEY must be replaced with a strong random value")
+    if settings.payment_provider == "razorpay" and (
+        not settings.razorpay_key_id or not settings.razorpay_key_secret
+    ):
+        raise RuntimeError("Razorpay is enabled but production credentials are missing")
+
 app = FastAPI(
     title=settings.app_name,
     debug=settings.app_debug,
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+if settings.app_env == "production":
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[settings.frontend_url.replace("https://", "").replace("http://", "").split("/")[0], "localhost"],
+    )
 
 app.add_middleware(
     CORSMiddleware,
