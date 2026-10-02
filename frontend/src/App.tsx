@@ -20,7 +20,7 @@ export default function App() {
       <Route
         path="/messages/:bookingId"
         element={
-          <ProtectedRoute roles={['user', 'owner', 'super_admin']}>
+          <ProtectedRoute roles={['user', 'owner']}>
             <BookingMessagesPage />
           </ProtectedRoute>
         }
