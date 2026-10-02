@@ -6,6 +6,12 @@ from src.core.config import settings
 from src.db.session import AsyncSessionLocal
 from src.services.booking_lifecycle_service import BookingLifecycleService
 from src.services.email_service import EmailService
+from sqlalchemy import select
+from datetime import datetime, timezone
+
+from src.models.message import BookingMessage
+from src.models.message_automation import ScheduledMessage
+from src.services.notification_service import NotificationService
 from src.services.payout_automation_service import PayoutAutomationService
 
 
@@ -15,6 +21,24 @@ async def handle_job(name: str, payload: dict) -> None:
             await BookingLifecycleService.expire_unpaid(db)
             await BookingLifecycleService.complete_finished_stays(db)
             await PayoutAutomationService.process_ready(db)
+
+            scheduled = await db.execute(
+                select(ScheduledMessage).where(
+                    ScheduledMessage.sent_at.is_(None),
+                    ScheduledMessage.send_at <= datetime.now(timezone.utc),
+                )
+            )
+            for item in scheduled.scalars().all():
+                message = BookingMessage(
+                    booking_id=item.booking_id,
+                    sender_id=item.sender_id,
+                    body=item.body,
+                )
+                db.add(message)
+                item.sent_at = datetime.now(timezone.utc)
+
+            if scheduled:
+                await db.commit()
         return
 
     if name == "booking_confirmation_email":
