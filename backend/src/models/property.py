@@ -69,3 +69,4 @@ class Property(Base):
     bookings = relationship("Booking", back_populates="property")
     review_entries = relationship("Review", back_populates="property", cascade="all, delete-orphan")
     transfer_requests = relationship("TransferRequest", back_populates="property", cascade="all, delete-orphan")
+    availability_blocks = relationship("AvailabilityBlock", back_populates="property", cascade="all, delete-orphan")
