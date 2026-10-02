@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.property import Property, PropertyStatus
@@ -7,12 +9,43 @@ from src.schemas.property import PropertyCreate, PropertyUpdate
 
 class PropertyService:
     @staticmethod
-    async def list_live(db: AsyncSession) -> list[Property]:
-        result = await db.execute(
-            select(Property)
-            .where(Property.status == PropertyStatus.LIVE)
-            .order_by(Property.created_at.desc())
-        )
+    async def list_live(
+        db: AsyncSession,
+        *,
+        q: str | None = None,
+        city: str | None = None,
+        category: str | None = None,
+        guests: int | None = None,
+        min_price: Decimal | None = None,
+        max_price: Decimal | None = None,
+    ) -> list[Property]:
+        statement = select(Property).where(Property.status == PropertyStatus.LIVE)
+
+        if q:
+            like = f"%{q.strip()}%"
+            statement = statement.where(
+                or_(
+                    Property.title.ilike(like),
+                    Property.city.ilike(like),
+                    Property.state.ilike(like),
+                    Property.country.ilike(like),
+                    Property.description.ilike(like),
+                )
+            )
+
+        if city:
+            statement = statement.where(Property.city.ilike(f"%{city.strip()}%"))
+        if category:
+            statement = statement.where(Property.category.ilike(category.strip()))
+        if guests is not None:
+            statement = statement.where(Property.guests >= guests)
+        if min_price is not None:
+            statement = statement.where(Property.price_per_night >= min_price)
+        if max_price is not None:
+            statement = statement.where(Property.price_per_night <= max_price)
+
+        statement = statement.order_by(Property.created_at.desc())
+        result = await db.execute(statement)
         return list(result.scalars().all())
 
     @staticmethod
