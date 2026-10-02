@@ -16,19 +16,24 @@ export default function UserDashboard() {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [offeringTrips, setOfferingTrips] = useState<Awaited<ReturnType<typeof offeringApi.mineBookings>>>([]);
   const [specialOffers, setSpecialOffers] = useState<Awaited<ReturnType<typeof collaborationApi.specialOffers>>>([]);
+  const [sharedWishlists, setSharedWishlists] = useState<Awaited<ReturnType<typeof collaborationApi.wishlists>>>([]);
+  const [newWishlistName, setNewWishlistName] = useState('');
+  const [joinToken, setJoinToken] = useState('');
 
   async function loadTrips() {
     try {
-      const [tripItems, saved, activities, offers] = await Promise.all([
+      const [tripItems, saved, activities, offers, collections] = await Promise.all([
         bookingApi.myTrips(),
         wishlistApi.list(),
         offeringApi.mineBookings(),
         collaborationApi.specialOffers(),
+        collaborationApi.wishlists(),
       ]);
       setTrips(tripItems);
       setWishlist(saved);
       setOfferingTrips(activities);
       setSpecialOffers(offers);
+      setSharedWishlists(collections);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Unable to load trips');
     }
@@ -77,7 +82,7 @@ export default function UserDashboard() {
           <a className="selected"><Home />Overview</a>
           <a><Suitcase />Trips</a>
           <a><Heart />Wishlists</a>
-          <a><UserRound />Profile</a>
+          <Link to="/trust"><UserRound />Trust & support</Link>
           <button className="sidebar-button" onClick={signOut}><LogOut />Sign out</button>
         </nav>
       </aside>
@@ -214,6 +219,39 @@ export default function UserDashboard() {
               ))}
             </div>
           )}
+        </div>
+
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Shared trip wishlists</h2><p>Invite people, set dates and guest count, add notes and vote on stays together.</p></div></div>
+          <div className="collaboration-create">
+            <input value={newWishlistName} onChange={(e)=>setNewWishlistName(e.target.value)} placeholder="Weekend in Manali"/>
+            <button className="primary inline" onClick={async()=>{
+              const name = newWishlistName.trim();
+              if (!name) return;
+              await collaborationApi.createWishlist(name);
+              setNewWishlistName('');
+              setSharedWishlists(await collaborationApi.wishlists());
+            }}>Create wishlist</button>
+            <input value={joinToken} onChange={(e)=>setJoinToken(e.target.value)} placeholder="Paste shared token"/>
+            <button className="ghost dark" onClick={async()=>{
+              const token = joinToken.trim();
+              if (!token) return;
+              await collaborationApi.joinWishlist(token);
+              setJoinToken('');
+              setSharedWishlists(await collaborationApi.wishlists());
+            }}>Join shared list</button>
+          </div>
+          <div className="shared-wishlist-grid">
+            {sharedWishlists.length === 0 ? <p>No collaborative wishlists yet.</p> : sharedWishlists.map((list)=>(
+              <Link className="shared-wishlist-card" to={'/wishlists/' + list.id} key={list.id}>
+                <strong>{list.name}</strong>
+                <small>{list.proposed_start_date && list.proposed_end_date ? list.proposed_start_date + ' → ' + list.proposed_end_date : 'Dates not chosen'}</small>
+                <span>{list.guest_count ? list.guest_count + ' guests' : 'Guest count open'}</span>
+                {list.share_token && <code>{list.share_token}</code>}
+              </Link>
+            ))}
+          </div>
         </div>
 
         <div className="panel">
