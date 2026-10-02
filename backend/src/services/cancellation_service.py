@@ -17,13 +17,27 @@ from src.services.razorpay_service import RazorpayService
 
 class CancellationService:
     @staticmethod
-    def refund_percent(booking: Booking) -> int:
+    async def refund_percent(db: AsyncSession, booking: Booking) -> int:
         check_in = datetime.combine(
             booking.check_in,
             datetime.min.time(),
             tzinfo=timezone.utc,
         )
         hours = (check_in - datetime.now(timezone.utc)).total_seconds() / 3600
+
+        property_obj = await db.get(Property, booking.property_id)
+        policy = property_obj.cancellation_policy if property_obj else "moderate"
+
+        if booking.status == BookingStatus.REQUESTED:
+            return 100
+
+        if policy == "flexible":
+            return 100 if hours >= 24 else 0
+
+        if policy == "strict":
+            if hours >= 168:
+                return 50
+            return 0
 
         if hours >= settings.cancellation_full_refund_hours:
             return 100
@@ -42,7 +56,7 @@ class CancellationService:
         if booking.status in {BookingStatus.CANCELLED, BookingStatus.COMPLETED}:
             raise ValueError("This booking cannot be cancelled")
 
-        percent = cls.refund_percent(booking)
+        percent = await cls.refund_percent(db, booking)
         refund_amount = Decimal("0")
 
         if payment and payment.status == PaymentStatus.PAID and percent > 0:
