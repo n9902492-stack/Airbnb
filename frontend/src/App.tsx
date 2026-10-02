@@ -9,6 +9,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import CheckoutPage from './pages/CheckoutPage';
 import EditPropertyPage from './pages/EditPropertyPage';
+import BookingMessagesPage from './pages/BookingMessagesPage';
 
 export default function App() {
   return (
@@ -16,6 +17,15 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/stays/:id" element={<PropertyPage />} />
+      <Route
+        path="/messages/:bookingId"
+        element={
+          <ProtectedRoute roles={['user', 'owner', 'super_admin']}>
+            <BookingMessagesPage />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/checkout/:bookingId"
         element={
