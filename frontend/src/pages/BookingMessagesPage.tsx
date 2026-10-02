@@ -3,7 +3,7 @@ import { ArrowLeft, ImagePlus, MessageCircle, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { authStore } from '../lib/auth';
-import { messageApi, type BookingMessage } from '../lib/api';
+import { messageApi, messageToolsApi, type BookingMessage } from '../lib/api';
 
 export default function BookingMessagesPage() {
   const { bookingId } = useParams();
@@ -14,6 +14,8 @@ export default function BookingMessagesPage() {
   const [message, setMessage] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [templates, setTemplates] = useState<Awaited<ReturnType<typeof messageToolsApi.templates>>>([]);
+  const [scheduleAt, setScheduleAt] = useState('');
   const endRef = useRef<HTMLDivElement | null>(null);
 
   async function refresh() {
@@ -29,6 +31,9 @@ export default function BookingMessagesPage() {
 
   useEffect(() => {
     void refresh();
+    if (user?.role === 'owner') {
+      void messageToolsApi.templates().then(setTemplates).catch(()=>undefined);
+    }
     const timer = window.setInterval(() => void refresh(), 10000);
     return () => window.clearInterval(timer);
   }, [id]);
@@ -115,6 +120,32 @@ export default function BookingMessagesPage() {
           )}
           <div ref={endRef}/>
         </div>
+
+        {user?.role === 'owner' && (
+          <div className="message-host-tools">
+            <select defaultValue="" onChange={(e)=>{
+              const template = templates.find((x)=>x.id === Number(e.target.value));
+              if (template) setBody(template.body);
+            }}>
+              <option value="">Quick reply…</option>
+              {templates.map((template)=><option key={template.id} value={template.id}>{template.title}</option>)}
+            </select>
+            <input type="datetime-local" value={scheduleAt} onChange={(e)=>setScheduleAt(e.target.value)}/>
+            <button type="button" className="ghost dark" disabled={!body.trim() || !scheduleAt} onClick={async()=>{
+              await messageToolsApi.schedule(id,body.trim(),new Date(scheduleAt).toISOString());
+              setMessage('Message scheduled.');
+              setBody('');
+              setScheduleAt('');
+            }}>Schedule</button>
+            <button type="button" className="ghost dark" disabled={!body.trim()} onClick={async()=>{
+              const title = window.prompt('Quick reply name')?.trim();
+              if (!title) return;
+              await messageToolsApi.createTemplate(title,body.trim());
+              setTemplates(await messageToolsApi.templates());
+              setMessage('Quick reply saved.');
+            }}>Save quick reply</button>
+          </div>
+        )}
 
         {attachmentUrl && (
           <div className="attachment-preview">
