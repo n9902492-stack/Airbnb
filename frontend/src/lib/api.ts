@@ -368,3 +368,177 @@ export const ownerManagementApi = {
       headers: authHeaders(),
     }),
 };
+
+
+export type PublicProperty = {
+  id: number;
+  owner_id: number;
+  title: string;
+  description: string;
+  property_type: string;
+  category: string;
+  address_line: string;
+  city: string;
+  state: string;
+  country: string;
+  postal_code: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  guests: number;
+  bedrooms: number;
+  beds: number;
+  bathrooms: number;
+  price_per_night: number;
+  cleaning_fee: number;
+  amenities: string[];
+  house_rules: string[];
+  image_urls: string[];
+  check_in_time: string;
+  check_out_time: string;
+  status: string;
+  rejection_reason?: string | null;
+};
+
+export const propertyApi = {
+  search: (params: {
+    q?: string;
+    city?: string;
+    category?: string;
+    guests?: number;
+    min_price?: number;
+    max_price?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '' && value !== null) {
+        qs.set(key, String(value));
+      }
+    });
+    const suffix = qs.toString() ? '?' + qs.toString() : '';
+    return request<PublicProperty[]>('/properties' + suffix);
+  },
+
+  get: (propertyId: number) =>
+    request<PublicProperty>('/properties/' + propertyId),
+};
+
+export type WishlistItem = {
+  id: number;
+  property_id: number;
+  title: string;
+  city: string;
+  state: string;
+  price_per_night: number;
+  image_urls: string[];
+};
+
+export const wishlistApi = {
+  list: () =>
+    request<WishlistItem[]>('/wishlist', {
+      headers: authHeaders(),
+    }),
+
+  add: (propertyId: number) =>
+    request('/wishlist/' + propertyId, {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  remove: (propertyId: number) =>
+    request('/wishlist/' + propertyId, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }),
+};
+
+export type BookingMessage = {
+  id: number;
+  booking_id: number;
+  sender_id: number;
+  sender_name: string;
+  body: string;
+  created_at: string;
+};
+
+export const messageApi = {
+  list: (bookingId: number) =>
+    request<BookingMessage[]>('/messages/' + bookingId, {
+      headers: authHeaders(),
+    }),
+
+  send: (bookingId: number, body: string) =>
+    request<BookingMessage>('/messages/' + bookingId, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body }),
+    }),
+};
+
+export type NotificationItem = {
+  id: number;
+  kind: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+export const notificationApi = {
+  list: () =>
+    request<NotificationItem[]>('/notifications', {
+      headers: authHeaders(),
+    }),
+
+  markRead: (notificationId: number) =>
+    request('/notifications/' + notificationId + '/read', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+};
+
+export type OwnerEarnings = {
+  gross: number;
+  refunded: number;
+  net: number;
+  transactions: Array<{
+    booking_id: number;
+    property_title: string;
+    amount: number;
+    refund_amount: number;
+    net_amount: number;
+    status: string;
+    created_at: string;
+  }>;
+};
+
+export const earningsApi = {
+  owner: () =>
+    request<OwnerEarnings>('/owner/earnings', {
+      headers: authHeaders(),
+    }),
+};
+
+export type AdminBooking = {
+  booking_id: number;
+  property_title: string;
+  guest_name: string;
+  check_in: string;
+  check_out: string;
+  status: string;
+  total_amount: number;
+  payment_status?: string | null;
+  refund_amount: number;
+};
+
+export const adminBookingApi = {
+  list: () =>
+    request<AdminBooking[]>('/super-admin/bookings', {
+      headers: authHeaders(),
+    }),
+
+  cancel: (bookingId: number, reason = 'Cancelled by platform administrator') =>
+    request('/super-admin/bookings/' + bookingId + '/cancel?reason=' + encodeURIComponent(reason), {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+};
