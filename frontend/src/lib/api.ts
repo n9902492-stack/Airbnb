@@ -66,6 +66,9 @@ export type OwnerProperty = {
   city: string;
   state: string;
   price_per_night: number;
+  weekend_price_per_night?: number | null;
+  minimum_stay_nights?: number;
+  maximum_stay_nights?: number | null;
   status: 'draft' | 'pending' | 'live' | 'rejected' | 'paused';
   image_urls: string[];
   rejection_reason?: string | null;
@@ -368,6 +371,60 @@ export const ownerManagementApi = {
       body: JSON.stringify(payload),
     }),
 
+  pricingRules: (propertyId: number) =>
+    request<Array<{
+      id: number;
+      name: string;
+      start_date: string;
+      end_date: string;
+      nightly_rate: number;
+      minimum_stay_nights?: number | null;
+    }>>('/owner/properties/' + propertyId + '/pricing-rules', {
+      headers: authHeaders(),
+    }),
+
+  createPricingRule: (
+    propertyId: number,
+    payload: {
+      name: string;
+      start_date: string;
+      end_date: string;
+      nightly_rate: number;
+      minimum_stay_nights?: number | null;
+    },
+  ) =>
+    request('/owner/properties/' + propertyId + '/pricing-rules', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  deletePricingRule: (propertyId: number, ruleId: number) =>
+    request('/owner/properties/' + propertyId + '/pricing-rules/' + ruleId, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }),
+
+  payouts: () =>
+    request<{
+      pending: number;
+      paid: number;
+      commission: number;
+      payouts: Array<{
+        id: number;
+        booking_id: number;
+        gross_amount: number;
+        platform_commission: number;
+        owner_amount: number;
+        refund_adjustment: number;
+        status: string;
+        created_at: string;
+        paid_at?: string | null;
+      }>;
+    }>('/owner/payouts', {
+      headers: authHeaders(),
+    }),
+
   reservations: () =>
     request<Array<{
       booking_id: number;
@@ -406,6 +463,9 @@ export type PublicProperty = {
   bathrooms: number;
   price_per_night: number;
   cleaning_fee: number;
+  weekend_price_per_night?: number | null;
+  minimum_stay_nights?: number;
+  maximum_stay_nights?: number | null;
   amenities: string[];
   house_rules: string[];
   image_urls: string[];
@@ -557,4 +617,38 @@ export const adminBookingApi = {
       method: 'POST',
       headers: authHeaders(),
     }),
+};
+
+
+export type AdminFinance = {
+  collected: number;
+  refunds: number;
+  platform_commission: number;
+  owner_payable: number;
+  owner_paid: number;
+  payouts: Array<{
+    id: number;
+    booking_id: number;
+    owner_id: number;
+    owner_amount: number;
+    platform_commission: number;
+    status: string;
+  }>;
+};
+
+export const financeApi = {
+  admin: () =>
+    request<AdminFinance>('/super-admin/finance', {
+      headers: authHeaders(),
+    }),
+
+  markPayoutPaid: (payoutId: number, providerReference?: string) => {
+    const suffix = providerReference
+      ? '?provider_reference=' + encodeURIComponent(providerReference)
+      : '';
+    return request('/super-admin/payouts/' + payoutId + '/mark-paid' + suffix, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+  },
 };
