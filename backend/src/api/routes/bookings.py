@@ -35,7 +35,10 @@ async def create_booking(
             detail="Guest count exceeds this property's capacity",
         )
 
-    return await BookingService.create(db, current_user.id, property_obj, payload)
+    try:
+        return await BookingService.create(db, current_user.id, property_obj, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.get("/reviewable")
