@@ -32,4 +32,6 @@ export type Property = {
   amenities: string[];
   highlights: string[];
   customerReviews: CustomerReview[];
+  latitude: number;
+  longitude: number;
 };
