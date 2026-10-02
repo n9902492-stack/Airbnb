@@ -189,7 +189,8 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     await AuthService.change_password(db, user, payload.new_password)
-    return {"message": "Password changed successfully. You can sign in with your new password."}
+    await SessionService.revoke_all(db, user.id)
+    return {"message": "Password changed successfully. All previous sessions were signed out."}
 
 
 @router.get("/me", response_model=UserRead)
