@@ -17,17 +17,18 @@ class AvailabilityService:
         property_id: int,
         check_in: date,
         check_out: date,
+        exclude_booking_id: int | None = None,
     ) -> bool:
-        booking_conflict = await db.scalar(
-            select(Booking.id)
-            .where(
-                Booking.property_id == property_id,
-                Booking.status.in_(cls.BLOCKING_STATUSES),
-                Booking.check_in < check_out,
-                Booking.check_out > check_in,
-            )
-            .limit(1)
+        booking_statement = select(Booking.id).where(
+            Booking.property_id == property_id,
+            Booking.status.in_(cls.BLOCKING_STATUSES),
+            Booking.check_in < check_out,
+            Booking.check_out > check_in,
         )
+        if exclude_booking_id is not None:
+            booking_statement = booking_statement.where(Booking.id != exclude_booking_id)
+
+        booking_conflict = await db.scalar(booking_statement.limit(1))
         if booking_conflict:
             return False
 
