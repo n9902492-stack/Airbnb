@@ -1,4 +1,5 @@
 import re
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -15,6 +16,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=10, max_length=128)
+    account_type: Literal["user", "owner"] = "user"
 
     @field_validator("password")
     @classmethod
