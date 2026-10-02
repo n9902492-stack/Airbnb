@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.models.booking import Booking
 from src.models.property import Property
 from src.schemas.booking import BookingCreate
@@ -20,8 +22,6 @@ class BookingService:
         property_obj: Property,
         payload: BookingCreate,
     ) -> Booking:
-        # Lock the property row so overlapping booking attempts for the same
-        # property are serialized inside PostgreSQL before availability is checked.
         await db.execute(
             select(Property)
             .where(Property.id == property_obj.id)
@@ -51,6 +51,8 @@ class BookingService:
             subtotal=subtotal,
             service_fee=service_fee,
             total_amount=total_amount,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(minutes=settings.booking_hold_minutes),
         )
         db.add(booking)
         await db.commit()
