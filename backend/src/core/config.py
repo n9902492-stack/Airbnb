@@ -59,6 +59,7 @@ class Settings(BaseSettings):
 
     redis_url: str = ""
     redis_job_queue: str = "nestora:jobs"
+    job_worker_enabled: bool = True
 
     storage_provider: str = "local"
     s3_endpoint_url: str = ""
