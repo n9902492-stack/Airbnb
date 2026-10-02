@@ -77,8 +77,47 @@ export const ownerApi = {
       headers: authHeaders(),
     }),
 
+  uploadImage: async (file: File) => {
+    const token = localStorage.getItem('nestora_access_token');
+    if (!token) throw new Error('Please sign in first');
+
+    const body = new FormData();
+    body.append('file', file);
+
+    const response = await fetch(API_BASE + '/owner/uploads/images', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail ?? 'Image upload failed');
+    return data as { url: string };
+  },
+
   createProperty: (payload: unknown) =>
     request('/owner/properties', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+};
+
+export type ReviewableBooking = {
+  id: number;
+  property_id: number;
+  check_in: string;
+  check_out: string;
+};
+
+export const reviewApi = {
+  reviewableBookings: () =>
+    request<ReviewableBooking[]>('/bookings/reviewable', {
+      headers: authHeaders(),
+    }),
+
+  create: (propertyId: number, payload: { booking_id: number; rating: number; comment: string }) =>
+    request('/reviews/properties/' + propertyId, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload),
