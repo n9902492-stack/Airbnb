@@ -3,7 +3,7 @@ import { ArrowLeft, ImagePlus, MessageCircle, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { authStore } from '../lib/auth';
-import { messageApi, messageToolsApi, type BookingMessage } from '../lib/api';
+import { messageApi, messageToolsApi, participantApi, type BookingMessage } from '../lib/api';
 
 export default function BookingMessagesPage() {
   const { bookingId } = useParams();
@@ -16,13 +16,19 @@ export default function BookingMessagesPage() {
   const [uploading, setUploading] = useState(false);
   const [templates, setTemplates] = useState<Awaited<ReturnType<typeof messageToolsApi.templates>>>([]);
   const [scheduleAt, setScheduleAt] = useState('');
+  const [participants, setParticipants] = useState<Awaited<ReturnType<typeof participantApi.list>>>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
   const endRef = useRef<HTMLDivElement | null>(null);
 
   async function refresh() {
     if (!id) return;
     try {
-      const items = await messageApi.list(id);
+      const [items, members] = await Promise.all([
+        messageApi.list(id),
+        participantApi.list(id).catch(() => []),
+      ]);
       setMessages(items);
+      setParticipants(members);
       await messageApi.markRead(id).catch(() => undefined);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Unable to load conversation');
@@ -90,6 +96,30 @@ export default function BookingMessagesPage() {
         </div>
 
         {message && <div className="auth-error">{message}</div>}
+
+        <div className="conversation-members">
+          <div>
+            <strong>Trip group</strong>
+            <span>{participants.map((p)=>p.name).join(' · ') || 'Booking participants'}</span>
+          </div>
+          {participants.some((p)=>p.role === 'booker' && p.user_id === user?.id) && (
+            <div className="participant-invite">
+              <input type="email" value={inviteEmail} onChange={(e)=>setInviteEmail(e.target.value)} placeholder="Invite co-traveler by email"/>
+              <button type="button" className="ghost dark" onClick={async()=>{
+                const email=inviteEmail.trim();
+                if(!email) return;
+                try {
+                  await participantApi.invite(id,email);
+                  setInviteEmail('');
+                  setParticipants(await participantApi.list(id));
+                  setMessage('Co-traveler added to this trip and conversation.');
+                } catch (err) {
+                  setMessage(err instanceof Error ? err.message : 'Unable to invite traveler');
+                }
+              }}>Invite</button>
+            </div>
+          )}
+        </div>
 
         <div className="messages-thread">
           {messages.length === 0 ? (
