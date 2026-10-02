@@ -7,8 +7,10 @@ from src.db.session import get_db
 from src.models.booking import Booking, BookingStatus
 from src.models.payment import Payment, PaymentStatus
 from src.models.payout import OwnerPayout, PayoutStatus
+from src.models.payout_account import OwnerPayoutAccount
 from src.models.property import Property, PropertyStatus
 from src.models.user import User, UserRole
+from src.schemas.payout import PayoutAccountUpdate
 from src.services.cancellation_service import CancellationService
 from src.services.payout_service import PayoutService
 
@@ -64,6 +66,43 @@ async def admin_bookings(
         }
         for booking, property_obj, guest, payment in result.all()
     ]
+
+
+@router.put("/owners/{owner_id}/payout-account")
+async def set_owner_payout_account(
+    owner_id: int,
+    payload: PayoutAccountUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(super_admin_required),
+):
+    owner = await db.get(User, owner_id)
+    if not owner or owner.role != UserRole.OWNER:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    account = await db.scalar(
+        select(OwnerPayoutAccount).where(
+            OwnerPayoutAccount.owner_id == owner_id
+        )
+    )
+    if account:
+        account.linked_account_id = payload.linked_account_id
+        account.status = "active"
+    else:
+        account = OwnerPayoutAccount(
+            owner_id=owner_id,
+            linked_account_id=payload.linked_account_id,
+            status="active",
+        )
+        db.add(account)
+
+    await db.commit()
+    await db.refresh(account)
+    return {
+        "owner_id": owner_id,
+        "provider": account.provider,
+        "linked_account_id": account.linked_account_id,
+        "status": account.status,
+    }
 
 
 @router.get("/finance")
