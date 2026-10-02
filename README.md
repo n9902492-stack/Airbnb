@@ -238,3 +238,127 @@ The current migration chain includes:
 20261002_04 availability and payments
 20261002_05 booking expiry, cancellation and refunds
 ```
+
+
+## Marketplace pipeline
+
+The project now follows one connected marketplace pipeline rather than separate demo flows:
+
+```text
+LIVE POSTGRESQL PROPERTIES
+        ↓
+SEARCH + CATEGORY + GUEST FILTERS
+        ↓
+PROPERTY DETAIL
+        ↓
+ROOM PHOTOS + VERIFIED-STAY REVIEWS
+        ↓
+WISHLIST (optional)
+        ↓
+LIVE AVAILABILITY
+        ↓
+OPTIONAL MAP-BASED TRANSFER
+        ↓
+RESERVATION + 15-MINUTE HOLD
+        ↓
+CHECKOUT
+        ↓
+RAZORPAY / DEMO PAYMENT PROVIDER
+        ↓
+CONFIRMED BOOKING
+        ↓
+MY TRIPS + OWNER RESERVATIONS
+        ↓
+GUEST ↔ OWNER BOOKING CHAT
+        ↓
+IN-APP NOTIFICATIONS + EMAIL RECEIPTS
+        ↓
+CANCELLATION / REFUND
+        ↓
+OWNER EARNINGS
+        ↓
+COMPLETED STAY
+        ↓
+VERIFIED CUSTOMER REVIEW
+```
+
+### New marketplace modules
+
+Backend modules added without changing the existing service boundaries:
+
+```text
+models/
+  wishlist.py
+  message.py
+  notification.py
+
+api/routes/
+  wishlist.py
+  messages.py
+  notifications.py
+
+services/
+  notification_service.py
+```
+
+The public property endpoint supports PostgreSQL filtering:
+
+```text
+GET /api/v1/properties?q=
+GET /api/v1/properties?city=
+GET /api/v1/properties?category=
+GET /api/v1/properties?guests=
+GET /api/v1/properties?min_price=
+GET /api/v1/properties?max_price=
+```
+
+Owner financial reporting:
+
+```text
+GET /api/v1/owner/earnings
+```
+
+Booking chat:
+
+```text
+GET  /api/v1/messages/{booking_id}
+POST /api/v1/messages/{booking_id}
+```
+
+Wishlist:
+
+```text
+GET    /api/v1/wishlist
+POST   /api/v1/wishlist/{property_id}
+DELETE /api/v1/wishlist/{property_id}
+```
+
+Notifications:
+
+```text
+GET  /api/v1/notifications
+POST /api/v1/notifications/{notification_id}/read
+```
+
+Super Admin booking controls:
+
+```text
+GET  /api/v1/super-admin/bookings
+POST /api/v1/super-admin/bookings/{booking_id}/cancel
+```
+
+Admin cancellation reuses the normal cancellation/refund service; it does not bypass payment/refund logic.
+
+### Latest migration
+
+```text
+20261002_06_wishlist_messages_notifications.py
+```
+
+Run the full migration chain with:
+
+```powershell
+cd backend
+.venv\Scripts\activate
+alembic upgrade head
+```
