@@ -65,3 +65,4 @@ class Property(Base):
 
     owner = relationship("User", back_populates="properties")
     bookings = relationship("Booking", back_populates="property")
+    review_entries = relationship("Review", back_populates="property", cascade="all, delete-orphan")
