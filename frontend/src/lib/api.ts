@@ -312,6 +312,8 @@ export type CheckoutPreview = {
   stay_subtotal: number;
   service_fee: number;
   transfer_fee: number;
+  discount_amount: number;
+  promo_code?: string | null;
   gst_rate: number;
   gst_amount: number;
   grand_total: number;
@@ -334,16 +336,20 @@ export type PaymentSession = PaymentResult & {
 };
 
 export const paymentApi = {
-  preview: (bookingId: number) =>
-    request<CheckoutPreview>('/payments/checkout/' + bookingId, {
+  preview: (bookingId: number, promoCode?: string) => {
+    const suffix = promoCode ? '?promo_code=' + encodeURIComponent(promoCode) : '';
+    return request<CheckoutPreview>('/payments/checkout/' + bookingId + suffix, {
       headers: authHeaders(),
-    }),
+    });
+  },
 
-  create: (bookingId: number) =>
-    request<PaymentSession>('/payments/checkout/' + bookingId, {
+  create: (bookingId: number, promoCode?: string) => {
+    const suffix = promoCode ? '?promo_code=' + encodeURIComponent(promoCode) : '';
+    return request<PaymentSession>('/payments/checkout/' + bookingId + suffix, {
       method: 'POST',
       headers: authHeaders(),
-    }),
+    });
+  },
 
   verifyRazorpay: (
     paymentId: number,
@@ -663,6 +669,8 @@ export type BookingMessage = {
   sender_id: number;
   sender_name: string;
   body: string;
+  attachment_url?: string | null;
+  read_at?: string | null;
   created_at: string;
 };
 
@@ -672,12 +680,44 @@ export const messageApi = {
       headers: authHeaders(),
     }),
 
-  send: (bookingId: number, body: string) =>
+  send: (bookingId: number, body: string, attachmentUrl?: string | null) =>
     request<BookingMessage>('/messages/' + bookingId, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, attachment_url: attachmentUrl ?? null }),
     }),
+
+  markRead: (bookingId: number) =>
+    request('/messages/' + bookingId + '/read', {
+      method: 'POST',
+      headers: authHeaders(),
+    }),
+
+  uploadImage: async (file: File) => {
+    let token = localStorage.getItem('nestora_access_token');
+    if (!token) throw new Error('Please sign in first');
+    const upload = () => {
+      const body = new FormData();
+      body.append('file', file);
+      return fetch(API_BASE + '/messages/uploads/image', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Authorization: 'Bearer ' + token },
+        body,
+      });
+    };
+    let response = await upload();
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        token = refreshed;
+        response = await upload();
+      }
+    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail ?? 'Attachment upload failed');
+    return data as { url: string };
+  },
 };
 
 export type NotificationItem = {
@@ -907,6 +947,24 @@ export const offeringApi = {
       headers: authHeaders(),
     }),
 
+  slots: (id: number) =>
+    request<Array<{
+      id:number;
+      starts_at:string;
+      ends_at:string;
+      capacity:number;
+      price_override?:number|null;
+      private_group_price?:number|null;
+      is_private_available:boolean;
+    }>>('/offerings/items/' + id + '/slots'),
+
+  createSlot: (id: number, payload: unknown) =>
+    request('/offerings/items/' + id + '/slots', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
   mineBookings: () =>
     request<Array<{
       id: number;
@@ -1014,5 +1072,126 @@ export const collaborationApi = {
     request<{ booking_id:number; status:string }>('/collaboration/special-offers/' + offerId + '/accept', {
       method: 'POST',
       headers: authHeaders(),
+    }),
+};
+
+
+export const trustApi = {
+  identity: () =>
+    request<{
+      status:string;
+      verified:boolean;
+      provider?:string;
+      document_type?:string|null;
+      rejection_reason?:string|null;
+      submitted_at?:string|null;
+      verified_at?:string|null;
+    }>('/trust/identity', { headers: authHeaders() }),
+
+  startIdentity: (documentType: string, providerReference?: string) =>
+    request('/trust/identity/start', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        document_type: documentType,
+        provider_reference: providerReference ?? null,
+      }),
+    }),
+
+  mySupport: () =>
+    request<Array<{
+      id:number; booking_id?:number|null; case_type:string; subject:string;
+      description:string; status:string; priority:string; resolution?:string|null; created_at:string;
+    }>>('/trust/support/mine', { headers: authHeaders() }),
+
+  createSupport: (payload: unknown) =>
+    request('/trust/support', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  myClaims: () =>
+    request<Array<{
+      id:number; booking_id:number; claimant_id:number; respondent_id:number;
+      amount:number; reason:string; evidence_urls:string[]; status:string;
+      response_note?:string|null; created_at:string;
+    }>>('/trust/claims/mine', { headers: authHeaders() }),
+
+  createClaim: (payload: unknown) =>
+    request('/trust/claims', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }),
+
+  respondClaim: (claimId: number, status: 'accepted'|'declined', responseNote?: string) =>
+    request('/trust/claims/' + claimId + '/respond', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ status, response_note: responseNote ?? null }),
+    }),
+
+  pendingIdentity: () =>
+    request<Array<{
+      id:number; user_id:number; name:string; email:string; document_type?:string|null;
+      provider:string; provider_reference?:string|null; submitted_at?:string|null;
+    }>>('/trust/admin/identity', { headers: authHeaders() }),
+
+  approveIdentity: (id:number) =>
+    request('/trust/admin/identity/' + id + '/approve', {
+      method:'POST', headers:authHeaders(),
+    }),
+
+  rejectIdentity: (id:number, reason:string) =>
+    request('/trust/admin/identity/' + id + '/reject?reason=' + encodeURIComponent(reason), {
+      method:'POST', headers:authHeaders(),
+    }),
+
+  adminSupport: () =>
+    request<Array<{
+      id:number; reporter_id:number; reporter_name:string; booking_id?:number|null;
+      case_type:string; subject:string; status:string; priority:string; created_at:string;
+    }>>('/trust/admin/support', { headers:authHeaders() }),
+
+  updateSupport: (id:number, status:string, resolution?:string) =>
+    request('/trust/admin/support/' + id, {
+      method:'PATCH', headers:authHeaders(),
+      body:JSON.stringify({ status, resolution:resolution ?? null }),
+    }),
+};
+
+export const promotionApi = {
+  list: () =>
+    request<Array<{
+      id:number; code:string; discount_type:string; discount_value:number;
+      minimum_spend:number; valid_from?:string|null; valid_until?:string|null;
+      max_uses?:number|null; used_count:number; active:boolean;
+    }>>('/promotions', { headers:authHeaders() }),
+
+  create: (payload: unknown) =>
+    request('/promotions', {
+      method:'POST', headers:authHeaders(), body:JSON.stringify(payload),
+    }),
+
+  toggle: (id:number) =>
+    request('/promotions/' + id + '/toggle', {
+      method:'POST', headers:authHeaders(),
+    }),
+};
+
+export const messageToolsApi = {
+  templates: () =>
+    request<Array<{id:number;title:string;body:string}>>('/message-tools/templates', {
+      headers:authHeaders(),
+    }),
+  createTemplate: (title:string, body:string) =>
+    request('/message-tools/templates', {
+      method:'POST', headers:authHeaders(), body:JSON.stringify({title,body}),
+    }),
+  schedule: (bookingId:number, body:string, sendAt:string) =>
+    request('/message-tools/scheduled', {
+      method:'POST', headers:authHeaders(),
+      body:JSON.stringify({booking_id:bookingId,body,send_at:sendAt}),
     }),
 };
