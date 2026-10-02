@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.models.booking import Booking
+from src.models.booking import Booking, BookingStatus
 from src.models.property import Property
 from src.schemas.booking import BookingCreate
 from src.services.availability_service import AvailabilityService
@@ -48,6 +48,7 @@ class BookingService:
         service_fee = (subtotal * cls.SERVICE_FEE_RATE).quantize(Decimal("0.01"))
         total_amount = subtotal + service_fee
 
+        request_mode = property_obj.booking_mode == "request"
         booking = Booking(
             property_id=property_obj.id,
             guest_id=guest_id,
@@ -57,8 +58,11 @@ class BookingService:
             subtotal=subtotal,
             service_fee=service_fee,
             total_amount=total_amount,
-            expires_at=datetime.now(timezone.utc)
-            + timedelta(minutes=settings.booking_hold_minutes),
+            status=BookingStatus.REQUESTED if request_mode else BookingStatus.PENDING,
+            expires_at=None if request_mode else (
+                datetime.now(timezone.utc)
+                + timedelta(minutes=settings.booking_hold_minutes)
+            ),
         )
         db.add(booking)
         await db.commit()
