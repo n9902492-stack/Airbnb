@@ -33,6 +33,7 @@ export default function OwnerDashboard() {
   const [reservations, setReservations] = useState<Awaited<ReturnType<typeof ownerManagementApi.reservations>>>([]);
   const [earnings, setEarnings] = useState<OwnerEarnings>({ gross: 0, refunded: 0, net: 0, transactions: [] });
   const [payouts, setPayouts] = useState<{ pending: number; paid: number; commission: number; payouts: Array<{ id:number; booking_id:number; owner_amount:number; status:string }> }>({ pending: 0, paid: 0, commission: 0, payouts: [] });
+  const [payoutAccount, setPayoutAccount] = useState<{ configured:boolean; provider:string; linked_account_id?:string; status?:string }>({ configured:false, provider:'razorpay_route' });
 
   useEffect(() => {
     Promise.all([
@@ -40,6 +41,7 @@ export default function OwnerDashboard() {
       ownerManagementApi.reservations().then(setReservations).catch(() => setReservations([])),
       earningsApi.owner().then(setEarnings).catch(() => undefined),
       ownerManagementApi.payouts().then(setPayouts).catch(() => undefined),
+      ownerManagementApi.payoutAccount().then(setPayoutAccount).catch(() => undefined),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -176,6 +178,15 @@ export default function OwnerDashboard() {
             <div><small>Gross</small><strong>₹{Number(earnings.gross).toLocaleString('en-IN')}</strong></div>
             <div><small>Refunded</small><strong>₹{Number(earnings.refunded).toLocaleString('en-IN')}</strong></div>
             <div><small>Net</small><strong>₹{Number(earnings.net).toLocaleString('en-IN')}</strong></div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="section-head"><div><h2>Payout account</h2><p>Razorpay Route destination used for automatic owner-bank settlement.</p></div></div>
+          <div className={payoutAccount.configured ? "auth-success" : "auth-error"}>
+            {payoutAccount.configured
+              ? 'Connected to ' + payoutAccount.provider + ' · ' + payoutAccount.linked_account_id
+              : 'Not connected. Complete Razorpay Route linked-account onboarding before automatic payouts can be sent.'}
           </div>
         </div>
 
