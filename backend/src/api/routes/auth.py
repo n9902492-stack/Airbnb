@@ -6,26 +6,68 @@ from src.api.deps import get_current_user
 from src.core.security import create_access_token
 from src.db.session import get_db
 from src.models.user import User
+from src.models.verification_code import VerificationPurpose
 from src.schemas.auth import TokenResponse
 from src.schemas.user import UserCreate, UserRead
+from src.schemas.verification import (
+    ForgotPasswordRequest,
+    ResendOtpRequest,
+    ResetPasswordRequest,
+    VerifyOtpRequest,
+)
 from src.services.auth_service import AuthService
+from src.services.email_service import EmailService
+from src.services.otp_service import OtpService
 
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(
-    payload: UserCreate,
+async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
+    existing = await AuthService.get_by_email(db, payload.email)
+    if existing and existing.is_verified:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
+    if existing and not existing.is_verified:
+        user = existing
+    else:
+        user = await AuthService.register(db, payload)
+
+    _, otp = await OtpService.create(db, user.id, VerificationPurpose.EMAIL_VERIFICATION)
+    await EmailService.send_otp(user.email, otp, VerificationPurpose.EMAIL_VERIFICATION.value)
+    return user
+
+
+@router.post("/verify-email")
+async def verify_email(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
+    user = await AuthService.get_by_email(db, payload.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    valid = await OtpService.verify(
+        db,
+        user.id,
+        VerificationPurpose.EMAIL_VERIFICATION,
+        payload.otp,
+    )
+    if not valid:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    await AuthService.activate_verified_user(db, user)
+    return {"message": "Email verified. You can now sign in."}
+
+
+@router.post("/resend-verification-otp")
+async def resend_verification_otp(
+    payload: ResendOtpRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    existing = await AuthService.get_by_email(db, payload.email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        )
-    return await AuthService.register(db, payload)
+    user = await AuthService.get_by_email(db, payload.email)
+    if user and not user.is_verified:
+        _, otp = await OtpService.create(db, user.id, VerificationPurpose.EMAIL_VERIFICATION)
+        await EmailService.send_otp(user.email, otp, VerificationPurpose.EMAIL_VERIFICATION.value)
+    return {"message": "If the account requires verification, a new OTP has been sent."}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -33,14 +75,53 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
+    user = await AuthService.get_by_email(db, form.username)
+    if user and not user.is_verified:
+        raise HTTPException(status_code=403, detail="Verify your email before signing in")
+
     user = await AuthService.authenticate(db, form.username, form.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     return TokenResponse(access_token=create_access_token(str(user.id)))
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await AuthService.get_by_email(db, payload.email)
+    if user and user.is_verified:
+        _, otp = await OtpService.create(db, user.id, VerificationPurpose.PASSWORD_RESET)
+        await EmailService.send_otp(user.email, otp, VerificationPurpose.PASSWORD_RESET.value)
+
+    return {"message": "If this email is registered, a password reset OTP has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    # Reuse UserCreate validation so reset passwords follow exactly the same strength policy.
+    UserCreate(full_name="Password Reset", email=payload.email, password=payload.new_password)
+
+    user = await AuthService.get_by_email(db, payload.email)
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset request")
+
+    valid = await OtpService.verify(
+        db,
+        user.id,
+        VerificationPurpose.PASSWORD_RESET,
+        payload.otp,
+    )
+    if not valid:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    await AuthService.change_password(db, user, payload.new_password)
+    return {"message": "Password changed successfully. You can sign in with your new password."}
 
 
 @router.get("/me", response_model=UserRead)
