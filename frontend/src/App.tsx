@@ -16,6 +16,7 @@ import AddOfferingPage from './pages/AddOfferingPage';
 import WishlistPlannerPage from './pages/WishlistPlannerPage';
 import TrustCenterPage from './pages/TrustCenterPage';
 import EditOfferingPage from './pages/EditOfferingPage';
+import ChangeBookingPage from './pages/ChangeBookingPage';
 
 export default function App() {
   return (
@@ -30,6 +31,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={['user', 'owner']}>
             <BookingMessagesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/bookings/:bookingId/change"
+        element={
+          <ProtectedRoute roles={['user']}>
+            <ChangeBookingPage />
           </ProtectedRoute>
         }
       />
