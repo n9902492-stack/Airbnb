@@ -46,3 +46,4 @@ class Booking(Base):
     review = relationship("Review", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     transfer = relationship("TransferRequest", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     payment = relationship("Payment", back_populates="booking", uselist=False, cascade="all, delete-orphan")
+    messages = relationship("BookingMessage", back_populates="booking", cascade="all, delete-orphan")
