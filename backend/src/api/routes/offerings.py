@@ -109,6 +109,94 @@ async def host_offerings(
     return [serialize(x) for x in result.scalars().all()]
 
 
+
+
+@router.get("/host/bookings")
+async def host_offering_bookings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(host_required),
+):
+    result = await db.execute(
+        select(OfferingBooking, MarketplaceOffering, User)
+        .join(MarketplaceOffering, OfferingBooking.offering_id == MarketplaceOffering.id)
+        .join(User, OfferingBooking.guest_id == User.id)
+        .where(MarketplaceOffering.host_id == current_user.id)
+        .order_by(OfferingBooking.scheduled_at.asc())
+    )
+    return [
+        {
+            "id": booking.id,
+            "offering_id": item.id,
+            "title": item.title,
+            "kind": item.kind,
+            "guest_id": guest.id,
+            "guest_name": guest.full_name,
+            "scheduled_at": booking.scheduled_at,
+            "guest_count": booking.guest_count,
+            "total_amount": float(booking.total_amount),
+            "status": booking.status,
+            "payment_status": booking.payment_status,
+        }
+        for booking, item, guest in result.all()
+    ]
+
+
+@router.post("/bookings/{booking_id}/accept")
+async def accept_offering_request(
+    booking_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(host_required),
+):
+    booking = await db.get(OfferingBooking, booking_id)
+    if not booking or booking.status != "requested":
+        raise HTTPException(status_code=404, detail="Offering request not found")
+    item = await db.get(MarketplaceOffering, booking.offering_id)
+    if not item or (
+        current_user.role != UserRole.SUPER_ADMIN
+        and item.host_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Not your request")
+
+    provider = "razorpay" if settings.payment_provider == "razorpay" else "manual_demo"
+    booking.status = "confirmed"
+    booking.provider = provider
+    if provider == "razorpay":
+        order = await RazorpayService.create_order(
+            Decimal(booking.total_amount),
+            receipt=f"offering_{booking.id}",
+        )
+        booking.provider_order_id = order["id"]
+
+    await db.commit()
+    return {
+        "id": booking.id,
+        "status": booking.status,
+        "provider": booking.provider,
+        "provider_order_id": booking.provider_order_id,
+        "razorpay_key_id": settings.razorpay_key_id if provider == "razorpay" else None,
+        "amount_paise": int(Decimal(booking.total_amount) * 100),
+    }
+
+
+@router.post("/bookings/{booking_id}/decline")
+async def decline_offering_request(
+    booking_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(host_required),
+):
+    booking = await db.get(OfferingBooking, booking_id)
+    if not booking or booking.status != "requested":
+        raise HTTPException(status_code=404, detail="Offering request not found")
+    item = await db.get(MarketplaceOffering, booking.offering_id)
+    if not item or (
+        current_user.role != UserRole.SUPER_ADMIN
+        and item.host_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Not your request")
+    booking.status = "declined"
+    await db.commit()
+    return {"id": booking.id, "status": booking.status}
+
 @router.post("/{offering_id}/book")
 async def book_offering(
     offering_id: int,
