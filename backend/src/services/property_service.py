@@ -1,8 +1,11 @@
+from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.availability_block import AvailabilityBlock
+from src.models.booking import Booking, BookingStatus
 from src.models.property import Property, PropertyStatus
 from src.schemas.property import PropertyCreate, PropertyUpdate
 from src.services.map_service import MapService
@@ -17,6 +20,8 @@ class PropertyService:
         city: str | None = None,
         category: str | None = None,
         guests: int | None = None,
+        check_in: date | None = None,
+        check_out: date | None = None,
         bedrooms: int | None = None,
         beds: int | None = None,
         bathrooms: int | None = None,
@@ -51,6 +56,26 @@ class PropertyService:
             statement = statement.where(Property.category.ilike(category.strip()))
         if guests is not None:
             statement = statement.where(Property.guests >= guests)
+
+        if check_in and check_out:
+            if check_out <= check_in:
+                return []
+            booking_conflict = exists(
+                select(Booking.id).where(
+                    Booking.property_id == Property.id,
+                    Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+                    Booking.check_in < check_out,
+                    Booking.check_out > check_in,
+                )
+            )
+            owner_block = exists(
+                select(AvailabilityBlock.id).where(
+                    AvailabilityBlock.property_id == Property.id,
+                    AvailabilityBlock.start_date < check_out,
+                    AvailabilityBlock.end_date > check_in,
+                )
+            )
+            statement = statement.where(~booking_conflict, ~owner_block)
         if bedrooms is not None:
             statement = statement.where(Property.bedrooms >= bedrooms)
         if beds is not None:
