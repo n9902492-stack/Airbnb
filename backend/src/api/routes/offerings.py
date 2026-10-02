@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,7 +73,7 @@ async def list_offerings(
     return [serialize(x) for x in result.scalars().all()]
 
 
-@router.get("/{offering_id}")
+@router.get("/items/{offering_id}")
 async def get_offering(offering_id: int, db: AsyncSession = Depends(get_db)):
     item = await db.get(MarketplaceOffering, offering_id)
     if not item or item.status != "live":
@@ -198,7 +199,7 @@ async def decline_offering_request(
     await db.commit()
     return {"id": booking.id, "status": booking.status}
 
-@router.post("/{offering_id}/book")
+@router.post("/items/{offering_id}/book")
 async def book_offering(
     offering_id: int,
     payload: OfferingBookingCreate,
@@ -337,7 +338,7 @@ class OfferingSlotCreate(BaseModel):
     is_private_available: bool = False
 
 
-@router.get("/{offering_id}/slots")
+@router.get("/items/{offering_id}/slots")
 async def offering_slots(
     offering_id: int,
     db: AsyncSession = Depends(get_db),
@@ -364,7 +365,7 @@ async def offering_slots(
     ]
 
 
-@router.post("/{offering_id}/slots")
+@router.post("/items/{offering_id}/slots")
 async def create_offering_slot(
     offering_id: int,
     payload: OfferingSlotCreate,
