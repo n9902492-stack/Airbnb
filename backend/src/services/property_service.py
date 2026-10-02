@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.property import Property, PropertyStatus
 from src.schemas.property import PropertyCreate, PropertyUpdate
+from src.services.map_service import MapService
 
 
 class PropertyService:
@@ -58,10 +59,32 @@ class PropertyService:
         owner_id: int,
         payload: PropertyCreate,
     ) -> Property:
+        data = payload.model_dump()
+
+        if data.get("latitude") is None or data.get("longitude") is None:
+            address_query = ", ".join(
+                value
+                for value in [
+                    data.get("address_line"),
+                    data.get("city"),
+                    data.get("state"),
+                    data.get("postal_code"),
+                    data.get("country"),
+                ]
+                if value
+            )
+            try:
+                places = await MapService.geocode(address_query)
+                if places:
+                    data["latitude"] = places[0]["latitude"]
+                    data["longitude"] = places[0]["longitude"]
+            except Exception:
+                pass
+
         property_obj = Property(
             owner_id=owner_id,
             status=PropertyStatus.PENDING,
-            **payload.model_dump(),
+            **data,
         )
         db.add(property_obj)
         await db.commit()
