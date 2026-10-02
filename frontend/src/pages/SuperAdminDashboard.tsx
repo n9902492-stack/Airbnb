@@ -1,7 +1,52 @@
+import { useEffect, useState } from 'react';
 import { Building2, Flag, LayoutDashboard, Shield, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { adminApi, type PendingProperty } from '../lib/api';
 
 export default function SuperAdminDashboard() {
+  const [overview, setOverview] = useState({ users: 0, owners: 0, listings: 0, bookings: 0 });
+  const [pending, setPending] = useState<PendingProperty[]>([]);
+  const [reason, setReason] = useState<Record<number, string>>({});
+  const [message, setMessage] = useState('');
+
+  async function refresh() {
+    const [summary, items] = await Promise.all([
+      adminApi.overview(),
+      adminApi.pendingProperties(),
+    ]);
+    setOverview(summary);
+    setPending(items);
+  }
+
+  useEffect(() => {
+    void refresh().catch((err) => setMessage(err instanceof Error ? err.message : 'Unable to load moderation data'));
+  }, []);
+
+  async function approve(id: number) {
+    try {
+      await adminApi.approveProperty(id);
+      setMessage('Listing approved and moved live.');
+      await refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to approve listing');
+    }
+  }
+
+  async function reject(id: number) {
+    const value = reason[id]?.trim();
+    if (!value) {
+      setMessage('Add a rejection reason first.');
+      return;
+    }
+    try {
+      await adminApi.rejectProperty(id, value);
+      setMessage('Listing rejected with owner feedback.');
+      await refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to reject listing');
+    }
+  }
+
   return (
     <main className="dashboard admin-theme">
       <aside className="sidebar">
@@ -15,30 +60,61 @@ export default function SuperAdminDashboard() {
           <a><Shield />Platform controls</a>
         </nav>
       </aside>
+
       <section className="dash-content">
         <div className="dash-head">
           <div>
             <span className="eyebrow">Platform control centre</span>
             <h1>Super Admin overview</h1>
-            <p>Moderate the marketplace, protect users and keep operations healthy.</p>
+            <p>All numbers and pending listings below are loaded from PostgreSQL.</p>
           </div>
         </div>
+
         <div className="stats">
-          <div className="stat"><small>Total users</small><strong>12,480</strong></div>
-          <div className="stat"><small>Verified owners</small><strong>1,286</strong></div>
-          <div className="stat"><small>Live listings</small><strong>3,942</strong></div>
-          <div className="stat"><small>Open reports</small><strong>18</strong></div>
+          <div className="stat"><small>Total users</small><strong>{overview.users}</strong></div>
+          <div className="stat"><small>Owners</small><strong>{overview.owners}</strong></div>
+          <div className="stat"><small>Total listings</small><strong>{overview.listings}</strong></div>
+          <div className="stat"><small>Bookings</small><strong>{overview.bookings}</strong></div>
         </div>
+
+        {message && <div className="auth-success">{message}</div>}
+
         <div className="panel">
-          <h2>Needs attention</h2>
-          <div className="moderation-row">
-            <div><strong>7 listings awaiting approval</strong><p>New property submissions need moderation.</p></div>
-            <button className="ghost dark">Review</button>
+          <div className="section-head">
+            <div>
+              <h2>Pending listing moderation</h2>
+              <p>{pending.length} listing{pending.length === 1 ? '' : 's'} currently need review.</p>
+            </div>
           </div>
-          <div className="moderation-row">
-            <div><strong>4 identity checks flagged</strong><p>Manual verification is required before owner activation.</p></div>
-            <button className="ghost dark">Open</button>
-          </div>
+
+          {pending.length === 0 ? (
+            <p>No listings are awaiting moderation.</p>
+          ) : (
+            <div className="admin-moderation-grid">
+              {pending.map((item) => {
+                const image = item.image_urls?.[0];
+                return (
+                  <article className="admin-listing-card" key={item.id}>
+                    {image && <img src={image.startsWith('/uploads') ? 'http://localhost:8000' + image : image} alt={item.title} />}
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.city}, {item.state} · ₹{Number(item.price_per_night).toLocaleString('en-IN')}/night</p>
+                      <small>Owner ID #{item.owner_id}</small>
+                    </div>
+                    <textarea
+                      placeholder="Reason if rejecting"
+                      value={reason[item.id] ?? ''}
+                      onChange={(e) => setReason((current) => ({ ...current, [item.id]: e.target.value }))}
+                    />
+                    <div className="moderation-actions">
+                      <button className="primary inline" onClick={() => void approve(item.id)}>Approve</button>
+                      <button className="ghost dark" onClick={() => void reject(item.id)}>Reject</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </main>
