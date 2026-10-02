@@ -70,3 +70,4 @@ class Property(Base):
     review_entries = relationship("Review", back_populates="property", cascade="all, delete-orphan")
     transfer_requests = relationship("TransferRequest", back_populates="property", cascade="all, delete-orphan")
     availability_blocks = relationship("AvailabilityBlock", back_populates="property", cascade="all, delete-orphan")
+    wishlist_items = relationship("WishlistItem", back_populates="property", cascade="all, delete-orphan")
