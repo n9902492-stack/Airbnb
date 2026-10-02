@@ -13,6 +13,8 @@ import BookingMessagesPage from './pages/BookingMessagesPage';
 import OfferingPage from './pages/OfferingPage';
 import HostProfilePage from './pages/HostProfilePage';
 import AddOfferingPage from './pages/AddOfferingPage';
+import WishlistPlannerPage from './pages/WishlistPlannerPage';
+import TrustCenterPage from './pages/TrustCenterPage';
 
 export default function App() {
   return (
@@ -36,6 +38,24 @@ export default function App() {
         element={
           <ProtectedRoute roles={['user']}>
             <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/wishlists/:id"
+        element={
+          <ProtectedRoute roles={['user']}>
+            <WishlistPlannerPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/trust"
+        element={
+          <ProtectedRoute roles={['user', 'owner', 'super_admin']}>
+            <TrustCenterPage />
           </ProtectedRoute>
         }
       />
