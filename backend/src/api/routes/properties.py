@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,6 +18,8 @@ async def list_properties(
     city: str | None = Query(default=None, max_length=120),
     category: str | None = Query(default=None, max_length=80),
     guests: int | None = Query(default=None, ge=1),
+    check_in: date | None = Query(default=None),
+    check_out: date | None = Query(default=None),
     bedrooms: int | None = Query(default=None, ge=0),
     beds: int | None = Query(default=None, ge=1),
     bathrooms: int | None = Query(default=None, ge=1),
@@ -38,6 +41,8 @@ async def list_properties(
         city=city,
         category=category,
         guests=guests,
+        check_in=check_in,
+        check_out=check_out,
         bedrooms=bedrooms,
         beds=beds,
         bathrooms=bathrooms,
